@@ -108,11 +108,11 @@ class DataCleaner:
                         'median': 'Fill by column median',         
                         'remove_row_all': 'Remove row if all NaN', 
                         'remove_row': 'Remove row NaN',     
-                        'remove_value': 'Remove data point',
                         'back-fill': 'Back-fill, propagate previous val',     
                         'forward-fill': 'Forward-fill, propagate next val',   
                         'constant': 'Fill with constant -9999',       
                         'random': 'Fill by random within one std',
+                        'zeros': 'Fill by zeros',
                         }       
                         
         
@@ -135,7 +135,7 @@ class DataCleaner:
             
         
         if method == 'mean':
-            for column in self.data:
+            for column in self.columns:
                 self.data[column].fillna(self.data[column].mean(), inplace=True)
             print("Replaced NaN by column mean")
                       
@@ -159,7 +159,7 @@ class DataCleaner:
         elif method == 'back-fill':
             self.data.fillna(method='bfill',inplace=True)
             if len(self.data.isna().sum()) > 0:
-                print('There still exist NaNs in dataset')
+                print('There still exist NaNs in dataset. Conceeding NaNs in dataset')
                 pass
             else:
                 print('All NaNs replaced by back-fill')
@@ -168,7 +168,7 @@ class DataCleaner:
         elif method == 'forward-fill':
             self.data.fillna(method='ffill', inplace=True)
             if len(self.data.isna().sum()) > 0:
-                print('There still exist NaNs in dataset')
+                print('There still exist NaNs in dataset. Conceeing NaNs in dataset')
                 pass
             else:
                 print('All NaNs replaced by back-fill')
@@ -176,18 +176,24 @@ class DataCleaner:
                 
         elif method == 'constant':
             for column in self.columns:
-                self.data.column.fillna(-9999.0, inplace=True)
+                self.data[column].fillna(-9999.0, inplace=True)
             print("Replaced NaNs by constant -9999")
         
         
+        elif method == 'zeros':
+            for column in self.columns:
+                self.data[column].fillna(0, inplace=True)
+            print("Replaced NaNs by constant 0")
+            
+        
         elif method == 'random':
             for column in self.data:
-                column_avg = self.data.column.mean()
-                column_std = self.data.column.std()
-                column_null_count = self.data.column.isnull().sum()
+                column_avg = self.data[column].mean()
+                column_std = self.data[column].std()
+                column_null_count = self.data[column].isnull().sum()
                 column_random_list = np.random.randint(column_avg - column_std, column_avg + column_std, size=column_null_count)
-                self.data.column[np.isnan(self.data.column)] = column_random_list
-                self.data.column = self.data.column.astype(int)
+                self.data[column][np.isnan(self.data[column])] = column_random_list
+                self.data[column] = self.data[column].astype(int)
             print('Randomly filled NaNs with values close to the mean value but within one standard deviation')
         
         
@@ -200,12 +206,18 @@ class DataCleaner:
                 return self.method_dict
             
         
+        def clean_data(self, method=None):
+            self.identify_missing_values()
+            self.handle_missing_values(outliers=True, zeros=True, method=method)
+            
+            return self.data
+            
+        
                 
 if __name__ == "__main__":
     c = DataCleaner()
     c.identify_missing_values()
-    c.handle_missing_values(outliers=True, zeros=True)
-    c.handle_missing_values(method='mean')
+    c.handle_missing_values(outliers=True, zeros=True, method='back-fill')
     c.identify_missing_values()
     
     

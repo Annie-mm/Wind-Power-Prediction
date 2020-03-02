@@ -6,12 +6,14 @@ from datetime import datetime
 import seaborn as sns
 
 class DataCleaner:
+    """Identifies and handles missing data in dataset"""
+    
     def __init__(self, run_pickle=False):
         self.data = pd.read_pickle('data_raw.pkl')
         self.columns = self.data.iloc[:0]
 
         if run_pickle:
-            tmp = pd.read_csv(r'Assignment2.csv', index_col = 'TIMESTAMP')
+            tmp = pd.read_csv(r'Assignment2.csv')
             tmp_df = pd.DataFrame(tmp)
             with open('data_raw.pkl', 'wb') as handle:
                 pickle.dump(tmp_df, handle)
@@ -22,7 +24,7 @@ class DataCleaner:
                 
         
         
-    def identify_bad_data(self, column_name=None, _all=False):
+    def data_distribution(self, column_name=None, _all=False):
         """Distribution-plot to get a feeling of possible outliers"""
         
         if _all:
@@ -40,10 +42,10 @@ class DataCleaner:
     def identify_missing_values(self, column_name=None, _all=True, plot=True):
         """Identify zero-, outlier- and NaN values"""
         
-        self.zeros = pd.Series(dtype='int64')
-        self.outliers = pd.Series(dtype='int64')
-        self.nans = pd.Series(dtype='int64')
-        #self.nans = self.data.isnull().sum()
+        self.zeros = pd.Series(dtype='int64') # 0
+        self.outliers = pd.Series(dtype='int64') # -9999
+        self.nan_strings = pd.Series(dtype='int64') # 'NAN'
+        self.nans = self.data.isnull().sum() # 'nan'
         
         
         if _all:
@@ -62,7 +64,9 @@ class DataCleaner:
                
                 self.zeros.loc[str(column)] = zero_count
                 self.outliers.loc[str(column)] = outlier_count
-                self.nans.loc[str(column)] = nan_count
+                self.nan_strings.loc[str(column)] = nan_count
+                
+            self.nans = self.nans.add(self.nan_strings) # add nan and NAN
             
             self.missing_data = pd.concat([self.zeros, self.outliers, self.nans], axis=1, keys=['Zeros', 'Outliers', 'NaNs'])
         else:
@@ -89,7 +93,7 @@ class DataCleaner:
             
             plt.tick_params(axis='both', which='major', labelsize=14.5)
             
-            ax.set_xscale('log')
+            #ax.set_xscale('log')
             plt.xlabel('Missing data', fontsize=20)
             plt.ylabel('Features', fontsize=20)
             plt.title('Missing values per feature (0, -9999, NaN)', fontsize=20)
@@ -99,7 +103,7 @@ class DataCleaner:
             pass
             
                 
-    def handle_missing_values(self, method=None, outliers=False, zeros=False):
+    def handle_missing_values(self, method=None, outliers=True, zeros=True):
         """Choose method for handling missing data"""
         
         self.method_dict = {
@@ -118,68 +122,67 @@ class DataCleaner:
         if outliers:
             """Replace -9999 values with NaN, before proceeding"""
             
-            for column in self.columns:
-                for val in self.data[column]:
-                    if val == -9999:
-                        val.fillna(inplace=True)
+            
+            self.data.replace(-9999, np.nan, inplace=True)
             print("All -9999 values replaced by NaN")
         else:
             print("Proceeding without filling -9999 by NaN")
             
+            
         if zeros:
             """Replace 0 values with NaN, before proceeding"""
             
-            for column in self.columns:
-                for val in self.data[column]:
-                    if val == 0:
-                        val.fillna(inplace=True)
+            self.data.replace(0, np.nan, inplace=True)
             print("All 0 values replaced by NaN")
         else:
             print("Proceeding without filling 0s by NaN")
             
         
         if method == 'mean':
-            for column in self.columns:
-                self.data.column.fillna(self.data.column.mean(), inplace=True)
+            for column in self.data:
+                column.fillna(self.data[column].mean(), inplace=True)
             print("Replaced NaN by column mean")
-                        
+                      
+            
         elif method == 'median':
-            for column in self.columns:
-                self.data.column.fillna(self.data.column.median(), inplace=True)
+            for column in self.data:
+                self.data[column].fillna(self.data[column].median(), inplace=True)
             print("Replaced NaN by column median")
                 
+            
         elif method == 'remove_row_all':
             self.data.dropna(how='all', inplace=True)
             print('Removed rows containing exclusively NaN')
+            
             
         elif method == 'remove_row':
             self.data.dropna(inplace=True)
             print('Removed rows containing NaN')
             
+            
         elif method == 'back-fill':
             self.data.fillna(method='bfill',inplace=True)
-            for column in self.columns:
-                for val in self.data[column]:
-                    if val.isna:
-                        print('There still exist NaNs in dataset')
-                        break
-                    else:
-                        print('All NaNs replaced by back-fill')
+            if len(self.data.isna().sum()) > 0:
+                print('There still exist NaNs in dataset')
+                pass
+            else:
+                print('All NaNs replaced by back-fill')
+        
         
         elif method == 'forward-fill':
             self.data.fillna(method='ffill', inplace=True)
-            for column in self.columns:
-                for val in self.data[column]:
-                    if val.isna:
-                        print('There still exist NaNs in dataset')
-                        break
-                    else:
-                        print('All NaNs replaced by forward-fill')
+            if len(self.data.isna().sum()) > 0:
+                print('There still exist NaNs in dataset')
+                pass
+            else:
+                print('All NaNs replaced by back-fill')
                         
+                
         elif method == 'constant':
             for column in self.columns:
-                self.data.column.fillna(-9999, inplace=True)
+                self.data.column.fillna(-9999.0, inplace=True)
             print("Replaced NaNs by constant -9999")
+        
         
         elif method == 'random':
             for column in self.data:
@@ -191,16 +194,23 @@ class DataCleaner:
                 self.data.column = self.data.column.astype(int)
             print('Randomly filled NaNs with values close to the mean value but within one standard deviation')
         
+        
         else:
-            print('No valid method was chosen. See valid methods below:')
+            if outliers or zeros:
+                pass
+            else:
+                print('No valid method was chosen. See valid methods below:')
             
-            return self.method_dict
+                return self.method_dict
             
         
                 
 if __name__ == "__main__":
     c = DataCleaner()
     c.identify_missing_values()
+    c.handle_missing_values(outliers=True, zeros=True, method='remove_row')
+    c.identify_missing_values()
+    
     
     
     

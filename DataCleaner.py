@@ -10,7 +10,7 @@ class DataCleaner:
     
     def __init__(self, run_pickle=False):
         self.data = pd.read_pickle('data_raw.pkl')
-        self.columns = self.data.iloc[:0]
+        self.columns = self.data.columns
 
         if run_pickle:
             tmp = pd.read_csv(r'Assignment2.csv')
@@ -20,6 +20,8 @@ class DataCleaner:
             with open('data_raw.pkl', 'rb') as handle:
                 self.data = pickle.load(handle)
                 
+        self.data['PRESS'] = pd.to_numeric(self.data['PRESS'])
+        self.data.replace('NAN', np.nan, inplace=True) # 'NAN' -> nan        
 
                 
         
@@ -44,8 +46,7 @@ class DataCleaner:
         
         self.zeros = pd.Series(dtype='int64') # 0
         self.outliers = pd.Series(dtype='int64') # -9999
-        self.nan_strings = pd.Series(dtype='int64') # 'NAN'
-        self.nans = self.data.isnull().sum() # 'nan'
+        self.nans = self.data.isnull().sum() # nan
         
         
         if _all:
@@ -53,22 +54,18 @@ class DataCleaner:
             for column in self.columns:
                 zero_count = 0
                 outlier_count = 0
-                nan_count = 0
                 for val in self.data[column].values:
                     if val == 0:
                         zero_count += 1
                     elif val == -9999:
                         outlier_count += 1
-                    elif val == 'NAN':
-                        nan_count += 1
                
                 self.zeros.loc[str(column)] = zero_count
                 self.outliers.loc[str(column)] = outlier_count
-                self.nan_strings.loc[str(column)] = nan_count
                 
-            self.nans = self.nans.add(self.nan_strings) # add nan and NAN
             
             self.missing_data = pd.concat([self.zeros, self.outliers, self.nans], axis=1, keys=['Zeros', 'Outliers', 'NaNs'])
+        
         else:
             pass
             
@@ -103,7 +100,7 @@ class DataCleaner:
             pass
             
                 
-    def handle_missing_values(self, method=None, outliers=True, zeros=True):
+    def handle_missing_values(self, method=None, outliers=False, zeros=False):
         """Choose method for handling missing data"""
         
         self.method_dict = {
@@ -122,7 +119,6 @@ class DataCleaner:
         if outliers:
             """Replace -9999 values with NaN, before proceeding"""
             
-            
             self.data.replace(-9999, np.nan, inplace=True)
             print("All -9999 values replaced by NaN")
         else:
@@ -140,12 +136,12 @@ class DataCleaner:
         
         if method == 'mean':
             for column in self.data:
-                column.fillna(self.data[column].mean(), inplace=True)
+                self.data[column].fillna(self.data[column].mean(), inplace=True)
             print("Replaced NaN by column mean")
                       
             
         elif method == 'median':
-            for column in self.data:
+            for column in self.columns:
                 self.data[column].fillna(self.data[column].median(), inplace=True)
             print("Replaced NaN by column median")
                 
@@ -208,7 +204,8 @@ class DataCleaner:
 if __name__ == "__main__":
     c = DataCleaner()
     c.identify_missing_values()
-    c.handle_missing_values(outliers=True, zeros=True, method='remove_row')
+    c.handle_missing_values(outliers=True, zeros=True)
+    c.handle_missing_values(method='mean')
     c.identify_missing_values()
     
     

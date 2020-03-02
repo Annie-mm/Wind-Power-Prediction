@@ -1,29 +1,37 @@
+# -*- coding: utf-8 -*-
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
-from datetime import datetime
 import seaborn as sns
 
 class DataCleaner:
     """Identifies and handles missing data in dataset"""
     
-    def __init__(self, run_pickle=False):
-        self.data = pd.read_pickle('data_raw.pkl')
-        self.columns = self.data.columns
-
-        if run_pickle:
+    def __init__(self, clean_data=False):
+        try:
+            self.data = pd.read_pickle('data_raw.pkl')
+        except:
             tmp = pd.read_csv(r'Assignment2.csv')
             tmp_df = pd.DataFrame(tmp)
             with open('data_raw.pkl', 'wb') as handle:
                 pickle.dump(tmp_df, handle)
             with open('data_raw.pkl', 'rb') as handle:
                 self.data = pickle.load(handle)
-                
+     
+        self.columns = self.data.columns
         
-        self.data.replace('NAN', np.nan, inplace=True) # 'NAN' -> nan        
+        """Replace NAN strings with np.nan"""
+        self.data.replace('NAN', np.nan, inplace=True)
+        
+        """Convert object column to numeric column float64"""
         self.data['PRESS'] = pd.to_numeric(self.data['PRESS'])
-                
+        
+        """Convert to pandas datetime, to utilize Datetimeindex"""
+        self.data['TIME'] = pd.to_datetime(self.data.index)
+        self.data.set_index(self.data['TIME'], drop=True, inplace=True)
+        self.data.drop('TIME', axis=1, inplace=True)
         
         
     def data_distribution(self, column_name=None, _all=False):
@@ -39,18 +47,18 @@ class DataCleaner:
                 sns.distplot(self.data[column_name], bins=30)
             except: 
                 print('No valid column name given', self.columns)
-                
+                       
                 
     def identify_missing_values(self, column_name=None, _all=True, plot=True):
         """Identify zero-, outlier- and NaN values"""
         
-        self.zeros = pd.Series(dtype='int64') # 0
-        self.outliers = pd.Series(dtype='int64') # -9999
-        self.nans = self.data.isnull().sum() # nan
+        # Check for three types of missing data: 0, -9999, nan
+        self.zeros = pd.Series(dtype='int64')
+        self.outliers = pd.Series(dtype='int64') 
+        self.nans = self.data.isnull().sum() 
         
         
         if _all:
-            
             for column in self.columns:
                 zero_count = 0
                 outlier_count = 0
@@ -63,41 +71,43 @@ class DataCleaner:
                 self.zeros.loc[str(column)] = zero_count
                 self.outliers.loc[str(column)] = outlier_count
                 
-            
-            self.missing_data = pd.concat([self.zeros, self.outliers, self.nans], axis=1, keys=['Zeros', 'Outliers', 'NaNs'])
+            self.missing = pd.concat([self.zeros, self.outliers, self.nans], 
+                                     axis=1, 
+                                     keys=['Zeros', 'Outliers', 'NaNs'])
         
-        else:
-            pass
             
         if plot:
 
             f, ax = plt.subplots(figsize=(15, 6))
             
-            ax.barh(self.missing_data.index, self.missing_data['Outliers'], 
+            ax.barh(self.missing.index, self.missing['Outliers'], 
                     color='#21725F', label='Outliers', edgecolor='k', lw=0.5)
             
-            ax.barh(self.missing_data.index, self.missing_data['NaNs'],
+            ax.barh(self.missing.index, self.missing['NaNs'],
                     color='#509B53', label='NaNs', edgecolor='k', lw=0.5,
-                    left=self.missing_data['Outliers'])
+                    left=self.missing['Outliers'])
             
-            ax.barh(self.missing_data.index, self.missing_data['Zeros'],
+            ax.barh(self.missing.index, self.missing['Zeros'],
                     color='#FFF66B', label='Zeros', edgecolor='k', lw=0.5,
-                      left=np.array(self.missing_data['NaNs'])+np.array(self.missing_data['Outliers']))
+                      left=np.array(self.missing['NaNs'])+
+                      np.array(self.missing['Outliers']))
             
             handles, labels = ax.get_legend_handles_labels()
-            ax.legend(loc='upper right', handles = handles, labels=labels, frameon=True,
-                      edgecolor='black', facecolor='white', fontsize=20)
+            ax.legend(loc='upper right', handles = handles, labels=labels, 
+                      frameon=True, edgecolor='black', facecolor='white',
+                      fontsize=20)
             
             plt.tick_params(axis='both', which='major', labelsize=14.5)
             
-            #ax.set_xscale('log')
+            #ax.set_xscale('log') 
             plt.xlabel('Missing data', fontsize=20)
             plt.ylabel('Features', fontsize=20)
-            plt.title('Missing values per feature (0, -9999, NaN)', fontsize=20)
+            plt.title('Missing values per feature', fontsize=20)
             plt.tight_layout()
             plt.show()
+            
         else:
-            pass
+            return self.missing
             
                 
     def handle_missing_values(self, method=None, outliers=False, zeros=False):
@@ -136,13 +146,15 @@ class DataCleaner:
         
         if method == 'mean':
             for column in self.columns:
-                self.data[column].fillna(self.data[column].mean(), inplace=True)
+                self.data[column].fillna(self.data[column].mean(), 
+                                         inplace=True)
             print("Replaced NaN by column mean")
                       
             
         elif method == 'median':
             for column in self.columns:
-                self.data[column].fillna(self.data[column].median(), inplace=True)
+                self.data[column].fillna(self.data[column].median(), 
+                                         inplace=True)
             print("Replaced NaN by column median")
                 
             
@@ -159,7 +171,7 @@ class DataCleaner:
         elif method == 'back-fill':
             self.data.fillna(method='bfill',inplace=True)
             if len(self.data.isna().sum()) > 0:
-                print('There still exist NaNs in dataset. Conceeding NaNs in dataset')
+                print('There still exist NaNs in dataset. Conceeding NaNs')
                 pass
             else:
                 print('All NaNs replaced by back-fill')
@@ -168,7 +180,7 @@ class DataCleaner:
         elif method == 'forward-fill':
             self.data.fillna(method='ffill', inplace=True)
             if len(self.data.isna().sum()) > 0:
-                print('There still exist NaNs in dataset. Conceeing NaNs in dataset')
+                print('There still exist NaNs in dataset. Conceeding Nans')
                 pass
             else:
                 print('All NaNs replaced by back-fill')
@@ -187,13 +199,23 @@ class DataCleaner:
             
         
         elif method == 'random':
-            for column in self.data:
+            """WORK IN PROGRESS"""
+            
+            for idx, column in enumerate(self.data):
+                #column = 'V10'
                 column_avg = self.data[column].mean()
+                #print('a')
                 column_std = self.data[column].std()
-                column_null_count = self.data[column].isnull().sum()
-                column_random_list = np.random.randint(column_avg - column_std, column_avg + column_std, size=column_null_count)
-                self.data[column][np.isnan(self.data[column])] = column_random_list
-                self.data[column] = self.data[column].astype(int)
+                #print('a')
+                try:
+                    random = np.random.randint(column_avg - column_std , column_avg + column_std)
+                except:
+                    random = np.random.randint(column_avg + column_std , column_avg - column_std)
+                #print(random)
+                #print('a')
+                self.data[column][self.data[column].isnull()].replace(random, inplace=True)
+                #self.data[column][self.data[column].isnull()] = column_random_list
+                #self.data[column] = self.data[column].astype(int)
             print('Randomly filled NaNs with values close to the mean value but within one standard deviation')
         
         
@@ -206,19 +228,21 @@ class DataCleaner:
                 return self.method_dict
             
         
-        def clean_data(self, method=None):
-            self.identify_missing_values()
-            self.handle_missing_values(outliers=True, zeros=True, method=method)
-            
-            return self.data
-            
+    def save_cleaned_data(self, by=None):
+        """Saves a pkl file containing cleaned data by chosen method"""
         
+        self.handle_missing_values(outliers=True, zeros=True, method=by)
+        with open('data_by_{}.pkl'.format(by), 'wb') as handle:
+                pickle.dump(self.data, handle)
+        
+            
                 
 if __name__ == "__main__":
     c = DataCleaner()
     c.identify_missing_values()
-    c.handle_missing_values(outliers=True, zeros=True, method='back-fill')
+    c.handle_missing_values(outliers=True, zeros=True, method='mean')
     c.identify_missing_values()
+    # c.save_cleaned_data(by='mean')
     
     
     

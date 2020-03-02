@@ -6,6 +6,8 @@ class VarRelation:
     def __init__(self):
         self.data = DataCleaner.clean_data(method='mean')
         
+        
+        
     
 if __name__ == '__main__':
-    self.data
+    a = VarRelation()

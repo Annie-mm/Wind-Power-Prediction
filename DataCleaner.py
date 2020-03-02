@@ -20,9 +20,9 @@ class DataCleaner:
             with open('data_raw.pkl', 'rb') as handle:
                 self.data = pickle.load(handle)
                 
-        self.data['PRESS'] = pd.to_numeric(self.data['PRESS'])
+        
         self.data.replace('NAN', np.nan, inplace=True) # 'NAN' -> nan        
-
+        self.data['PRESS'] = pd.to_numeric(self.data['PRESS'])
                 
         
         

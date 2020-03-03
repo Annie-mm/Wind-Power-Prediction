@@ -30,30 +30,34 @@ class VarRelation:
         return self.unique
     
         
-    def plot_moving_average(self, cols=None, hours=400):
+    def plot_moving_average(self, cols='POWER', hours=400):
         """Plot moving average for selected columns and hours"""
         
-        try:
-            if type(cols) == list:
+        
+        if type(cols) == list:
+            try:
                 for col in cols:
                     self.data['{}{}MA'.format(col, str(hours))] = self.data[col].rolling(hours).mean()
                     
                 self.data.iloc[:,-len(cols):].plot(
                     title='{} hour moving average'.format(str(hours))
                     )
-        except:
-            raise ValueError('Unvalid column name(s) entered. Takes list of str or str.')
+            except:
+                raise KeyError('Unvalid column name(s) entered')
+                    
                 
-        try:        
-            if type(cols) == str:
-                self.data['{}{}MA'.format(col, str(hours))] = self.data[col].rolling(hours).mean()
+        elif type(cols) == str:
+            try:
+                self.data['{}{}MA'.format(cols, str(hours))] = self.data[cols].rolling(hours).mean()
                 
                 self.data.iloc[:,-1:].plot(
                     title='{} hour moving average'.format(str(hours))
                     )
-        except:
-            raise ValueError('Unvalid column name(s) entered. Takes list of str or str.')
-            
+            except:
+                raise KeyError('Unvalid column name(s) entered')
+                                 
+        else:
+            raise ValueError('Unvalid input-format. Takes list of str or str')
         
     def group_by_time(self, col=None):
         """Group features by time, and visualize"""
@@ -63,12 +67,6 @@ class VarRelation:
         
         self.group.plot()
         plt.show()
-        
-    def compare_wind_speed(self):
-        """Compare windspeeds at the different heights"""
-        
-        self.speed = pd.concat([self.data['WS10400MA'], self.data['WS100400MA']], axis=1, keys=['WS10', 'WS100']).dropna()
-        self.speed.plot()
         
         
     def plot_correlation_plot(self):
@@ -122,7 +120,7 @@ class VarRelation:
     
 if __name__ == '__main__':
     c = VarRelation()
-    c.plot_moving_average(cols=['POWER'], hours=400)
+    c.plot_moving_average(cols='POWER', hours=400)
     #c.group_by_time()
     #c.plot_correlation_plot()
     #c.plot_numeric_correlation()

@@ -116,7 +116,7 @@ class DataCleaner:
             return self.missing
             
                 
-    def handle_missing_values(self, method=None, outliers=False, zeros=False):
+    def handle_missing_values(self, method=None, outliers=True, zeros=True):
         """Choose method for handling missing data"""
         
         self.method_dict = {
@@ -250,7 +250,7 @@ class DataCleaner:
     def save_cleaned_data(self, by=None):
         """Saves a pkl file containing cleaned data by chosen method"""
         
-        self.handle_missing_values(outliers=True, zeros=True, method=by)
+        self.handle_missing_values(method=by)
         with open('data_by_{}.pkl'.format(by), 'wb') as handle:
                 pickle.dump(self.data, handle)
         
@@ -259,7 +259,7 @@ class DataCleaner:
 if __name__ == "__main__":
     c = DataCleaner()
     c.identify_missing_values()
-    c.handle_missing_values(outliers=True, zeros=True, method='random')
+    c.handle_missing_values(method='random')
     c.identify_missing_values()
     # c.save_cleaned_data(by='mean')
     

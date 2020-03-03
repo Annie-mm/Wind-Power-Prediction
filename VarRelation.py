@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 class VarRelation:
     def __init__(self):
@@ -42,30 +43,39 @@ class VarRelation:
         self.speed.plot()
         
         
-    def plot_correlation_plot(self):
+    def plot_correlation_plot1(self):
         self.corr = self.data.corr()
     
         
-        f = plt.figure(figsize=(19, 15))
+        f, ax = plt.figure(figsize=(19, 15))
         
-        plt.matshow(self.corr, fignum=f.number)
+        plt.matshow(self.corr, fignum=f.number, cmap='coolwarm', )
         plt.xticks(range(self.data.shape[1]), self.columns, fontsize=14, rotation=45)
         plt.yticks(range(self.data.shape[1]), self.columns, fontsize=14)
         cb = plt.colorbar()
         cb.ax.tick_params(labelsize=14)
         plt.title('Correlation Matrix', fontsize=20)
+        f.tight_layout()
+        
         
     def plot_numeric_correlation(self):
         self.corr = self.data.corr()
         
-        #corr.style.background_gradient(cmap='coolwarm')
-        # 'RdBu_r' & 'BrBG' are other good diverging colormaps
+        
+        sns.heatmap(self.corr, 
+                    xticklabels=self.corr.columns.values,
+                    yticklabels=self.corr.columns.values,
+                    annot=True,)
+        plt.xticks(rotation=45)
+        plt.yticks(rotation=45)
+        plt.show()
         
         
     
 if __name__ == '__main__':
     c = VarRelation()
     #c.plot_moving_average(col='POWER400MA')
-    c.group_by_time()
-    c.plot_correlation_plot()
+    #c.group_by_time()
+    #c.plot_correlation_plot()
+    c.plot_numeric_correlation()
     #c.compare_wind_speed()

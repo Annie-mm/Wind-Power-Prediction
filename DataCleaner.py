@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 import seaborn as sns
+import warnings
 
 class DataCleaner:
     """Identifies and handles missing data in dataset"""
@@ -177,8 +178,7 @@ class DataCleaner:
         elif method == 'back-fill':
             self.data.fillna(method='bfill',inplace=True)
             if len(self.data.isna().sum()) > 0:
-                print('There still exist NaNs in dataset. Conceeding NaNs')
-                pass
+                warnings.warn('There still exist NaNs in dataset')
             else:
                 print('All NaNs replaced by back-fill')
         
@@ -186,8 +186,7 @@ class DataCleaner:
         elif method == 'forward-fill':
             self.data.fillna(method='ffill', inplace=True)
             if len(self.data.isna().sum()) > 0:
-                print('There still exist NaNs in dataset. Conceeding Nans')
-                pass
+                warnings.warn('There still exist NaNs in dataset')
             else:
                 print('All NaNs replaced by back-fill')
                         
@@ -259,7 +258,7 @@ class DataCleaner:
 if __name__ == "__main__":
     c = DataCleaner()
     c.identify_missing_values()
-    c.handle_missing_values(method='random')
+    c.handle_missing_values(method='mean')
     c.identify_missing_values()
     # c.save_cleaned_data(by='mean')
     

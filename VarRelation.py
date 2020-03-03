@@ -26,14 +26,15 @@ class VarRelation:
     def plot_moving_average(self, cols='POWER', hours=400):
         """Plot moving average for selected columns and hours"""
         
-        
         if type(cols) == list:
             try:
                 for col in cols:
-                    self.data['{}{}MA'.format(col, str(hours))] = self.data[col].rolling(hours).mean()
+                    self.data['{}-{}MA'.format(col, str(hours))] = self.data[col].rolling(hours).mean()
                     
-                self.data.iloc[:,-len(cols):].plot(
-                    title='{} hour moving average'.format(str(hours))
+                self.data.iloc[:,-len(cols):].dropna().plot(
+                    title='{} hour moving average'.format(str(hours)),
+                    logy=True,
+                    grid=True,
                     )
             except:
                 raise KeyError('Unvalid column name(s) entered')
@@ -41,10 +42,12 @@ class VarRelation:
                 
         elif type(cols) == str:
             try:
-                self.data['{}{}MA'.format(cols, str(hours))] = self.data[cols].rolling(hours).mean()
+                self.data['{}-{}MA'.format(cols, str(hours))] = self.data[cols].rolling(hours).mean()
                 
-                self.data.iloc[:,-1:].plot(
-                    title='{} hour moving average'.format(str(hours))
+                self.data.iloc[:,-1:].dropna.plot(
+                    title='{} hour moving average'.format(str(hours)),
+                    logy=True,
+                    grid=True,
                     )
             except:
                 raise KeyError('Unvalid column name(s) entered')
@@ -102,6 +105,7 @@ class VarRelation:
     def plot_numeric_covariance(self):
         self.cov = self.data.cov()
         
+        
         sns.heatmap(self.cov, cmap="RdYlGn",
                     xticklabels=self.data.columns.values,
                     yticklabels=self.data.columns.values,
@@ -114,8 +118,8 @@ class VarRelation:
     
 if __name__ == '__main__':
     c = VarRelation()
-    #c.plot_moving_average(cols='POWER', hours=400)
+    #c.plot_moving_average(cols=['WS10', 'WS100', 'POWER'], hours=400)
     #c.group_by_time()
     #c.plot_correlation_matrix()
-    #c.plot_numeric_correlation()
-    c.plot_numeric_covariance()
+    c.plot_numeric_correlation()
+    #c.plot_numeric_covariance()

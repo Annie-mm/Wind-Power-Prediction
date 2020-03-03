@@ -15,11 +15,11 @@ class VarRelation:
         
         self.columns = self.data.columns
         
-        self.data0 = self.data.iloc[:,0:9]
+        #self.data0 = self.data.iloc[:,0:9]
         
-        self.data['POWER400MA'] = self.data['POWER'].rolling(200).mean()
-        self.data['WS10400MA'] = self.data['WS10'].rolling(700).mean()
-        self.data['WS100400MA'] = self.data['WS100'].rolling(700).mean()
+        # self.data['POWER400MA'] = self.data['POWER'].rolling(200).mean()
+        # self.data['WS10400MA'] = self.data['WS10'].rolling(700).mean()
+        # self.data['WS100400MA'] = self.data['WS100'].rolling(700).mean()
         
         
     def get_unique_values(self, col=None): 
@@ -28,12 +28,32 @@ class VarRelation:
         #self.unique = list(set(self.data['PRESS'].values.tolist()))
         self.unique = self.data[col].unique()
         return self.unique
+    
         
-    def plot_moving_average(self, col='POWER'):
-        """Plot moving average"""
+    def plot_moving_average(self, cols=None, hours=400):
+        """Plot moving average for selected columns and hours"""
         
-        self.moving_average = self.data[col].rolling(400).mean()
-        self.moving_average.dropna().plot()
+        try:
+            if type(cols) == list:
+                for col in cols:
+                    self.data['{}{}MA'.format(col, str(hours))] = self.data[col].rolling(hours).mean()
+                    
+                self.data.iloc[:,-len(cols):].plot(
+                    title='{} hour moving average'.format(str(hours))
+                    )
+        except:
+            raise ValueError('Unvalid column name(s) entered. Takes list of str or str.')
+                
+        try:        
+            if type(cols) == str:
+                self.data['{}{}MA'.format(col, str(hours))] = self.data[col].rolling(hours).mean()
+                
+                self.data.iloc[:,-1:].plot(
+                    title='{} hour moving average'.format(str(hours))
+                    )
+        except:
+            raise ValueError('Unvalid column name(s) entered. Takes list of str or str.')
+            
         
     def group_by_time(self, col=None):
         """Group features by time, and visualize"""
@@ -51,21 +71,26 @@ class VarRelation:
         self.speed.plot()
         
         
-    def plot_correlation_plot1(self):
+    def plot_correlation_plot(self):
         """Plot a correlation matrix"""
         
-        self.corr = self.data0.corr()
+        self.corr = self.data.corr()
     
         
-        f, ax = plt.figure(figsize=(19, 15))
+        fig = plt.figure(figsize=(19, 15))
+        ax = fig.add_subplot(111)
+        labels = self.data.columns
         
-        plt.matshow(self.corr, fignum=f.number, cmap='coolwarm', )
-        plt.xticks(range(self.data0.shape[1]), self.columns, fontsize=14, rotation=45)
-        plt.yticks(range(self.data0.shape[1]), self.columns, fontsize=14)
-        cb = plt.colorbar()
-        cb.ax.tick_params(labelsize=14)
+        ax.set_xticks(np.arange(len(labels)))
+        ax.set_yticks(np.arange(len(labels)))
+        ax.set_xticklabels(labels)
+        ax.set_yticklabels(labels)
+        
+        #fig.colorbar()
+        
         plt.title('Correlation Matrix', fontsize=20)
-        f.tight_layout()
+        
+        ax.matshow(self.corr, cmap=plt.cm.RdYlGn, )
         
         
     def plot_numeric_correlation(self):
@@ -97,9 +122,9 @@ class VarRelation:
     
 if __name__ == '__main__':
     c = VarRelation()
-    #c.plot_moving_average(col='POWER400MA')
+    c.plot_moving_average(cols=['POWER'], hours=400)
     #c.group_by_time()
     #c.plot_correlation_plot()
-    c.plot_numeric_correlation()
-    c.plot_numeric_covariance()
+    #c.plot_numeric_correlation()
+    #c.plot_numeric_covariance()
     #c.compare_wind_speed()

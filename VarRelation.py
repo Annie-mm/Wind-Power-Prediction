@@ -10,22 +10,15 @@ class VarRelation:
         try:
             self.data = pd.read_pickle('data_by_mean.pkl')
         except:
-            print("Missing file: 'data_by_mean.pkl")
+            raise ImportError("Missing file: 'data_by_mean.pkl")
             
-        
         self.columns = self.data.columns
-        
-        #self.data0 = self.data.iloc[:,0:9]
-        
-        # self.data['POWER400MA'] = self.data['POWER'].rolling(200).mean()
-        # self.data['WS10400MA'] = self.data['WS10'].rolling(700).mean()
-        # self.data['WS100400MA'] = self.data['WS100'].rolling(700).mean()
         
         
     def get_unique_values(self, col=None): 
         """Get unique values of a selected feature"""
         
-        #self.unique = list(set(self.data['PRESS'].values.tolist()))
+        
         self.unique = self.data[col].unique()
         return self.unique
     
@@ -69,7 +62,7 @@ class VarRelation:
         plt.show()
         
         
-    def plot_correlation_plot(self):
+    def plot_correlation_matrix(self):
         """Plot a correlation matrix"""
         
         self.corr = self.data.corr()
@@ -84,33 +77,34 @@ class VarRelation:
         ax.set_xticklabels(labels)
         ax.set_yticklabels(labels)
         
-        #fig.colorbar()
+        
         
         plt.title('Correlation Matrix', fontsize=20)
         
-        ax.matshow(self.corr, cmap=plt.cm.RdYlGn, )
+        ax.matshow(self.corr, cmap=plt.cm.RdYlGn,)
         
         
     def plot_numeric_correlation(self):
-        self.corr = self.data0.corr()
+        self.corr = self.data.corr()
         
         
-        sns.heatmap(self.corr, 
+        sns.heatmap(self.corr, cmap="RdYlGn",
                     xticklabels=self.corr.columns.values,
                     yticklabels=self.corr.columns.values,
-                    annot=True,)
+                    annot=True, square=True)
         plt.xticks(rotation=45)
         plt.yticks(rotation=45)
+        #plt.
         plt.title('Correlation Matrix', fontsize=20)
         plt.show()
         
     
     def plot_numeric_covariance(self):
-        self.cov = self.data0.cov()
+        self.cov = self.data.cov()
         
-        sns.heatmap(self.cov, 
-                    xticklabels=self.data0.columns.values,
-                    yticklabels=self.data0.columns.values,
+        sns.heatmap(self.cov, cmap="RdYlGn",
+                    xticklabels=self.data.columns.values,
+                    yticklabels=self.data.columns.values,
                     annot=True,)
         plt.xticks(rotation=45)
         plt.yticks(rotation=45)
@@ -120,9 +114,8 @@ class VarRelation:
     
 if __name__ == '__main__':
     c = VarRelation()
-    c.plot_moving_average(cols='POWER', hours=400)
+    #c.plot_moving_average(cols='POWER', hours=400)
     #c.group_by_time()
-    #c.plot_correlation_plot()
+    #c.plot_correlation_matrix()
     #c.plot_numeric_correlation()
-    #c.plot_numeric_covariance()
-    #c.compare_wind_speed()
+    c.plot_numeric_covariance()

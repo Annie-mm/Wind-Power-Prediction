@@ -47,6 +47,12 @@ class DataCleaner:
                 sns.distplot(self.data[column_name], bins=30)
             except: 
                 print('No valid column name given', self.columns)
+                
+    def sort_datetime_index(self):
+        """Making sure datetime index is in correct order"""
+        
+        self.data.sort_index(inplace=True)
+        print(self.data)
                        
                 
     def identify_missing_values(self, column_name=None, _all=True, plot=True):
@@ -201,21 +207,34 @@ class DataCleaner:
         elif method == 'random':
             """WORK IN PROGRESS"""
             
-            for idx, column in enumerate(self.data):
-                #column = 'V10'
-                column_avg = self.data[column].mean()
-                #print('a')
-                column_std = self.data[column].std()
-                #print('a')
-                try:
-                    random = np.random.randint(column_avg - column_std , column_avg + column_std)
-                except:
-                    random = np.random.randint(column_avg + column_std , column_avg - column_std)
-                #print(random)
-                #print('a')
-                self.data[column][self.data[column].isnull()].replace(random, inplace=True)
-                #self.data[column][self.data[column].isnull()] = column_random_list
-                #self.data[column] = self.data[column].astype(int)
+            for column in self.columns:
+                
+                for idx, val in enumerate(self.data[column]):
+                    if type(val) != float:
+                        local_up = self.data[column][idx:idx+50].dropna()
+                        local_down = self.data[column][idx-51:idx-1].dropna()
+                        local = pd.concat([local_up, local_down], axis=1)
+                        local_mean = local.mean()
+                        self.data[column].replace(val, local_mean)
+                        print(val, local_mean)
+            
+                        
+                
+                
+                # #column = 'V10'
+                # column_avg = self.data[column].mean()
+                # #print('a')
+                # column_std = self.data[column].std()
+                # #print('a')
+                # try:
+                #     random = np.random.randint(column_avg - column_std , column_avg + column_std)
+                # except:
+                #     random = np.random.randint(column_avg + column_std , column_avg - column_std)
+                # #print(random)
+                # #print('a')
+                # self.data[column][self.data[column].isnull()].replace(random, inplace=True)
+                # #self.data[column][self.data[column].isnull()] = column_random_list
+                # #self.data[column] = self.data[column].astype(int)
             print('Randomly filled NaNs with values close to the mean value but within one standard deviation')
         
         
@@ -240,7 +259,7 @@ class DataCleaner:
 if __name__ == "__main__":
     c = DataCleaner()
     c.identify_missing_values()
-    c.handle_missing_values(outliers=True, zeros=True, method='mean')
+    c.handle_missing_values(outliers=True, zeros=True, method='random')
     c.identify_missing_values()
     # c.save_cleaned_data(by='mean')
     

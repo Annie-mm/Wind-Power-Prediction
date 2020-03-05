@@ -25,13 +25,14 @@ class VarRelation:
         
     def plot_moving_average(self, cols='POWER', hours=400):
         """Plot moving average for selected columns and hours"""
+        self.ma = self.data.copy()
         
         if type(cols) == list:
             try:
                 for col in cols:
-                    self.data['{}-{}MA'.format(col, str(hours))] = self.data[col].rolling(hours).mean()
-                    
-                self.data.iloc[:,-len(cols):].dropna().plot(
+                    self.ma['{}-{}MA'.format(col, str(hours))] = self.ma[col].rolling(hours).mean()
+                
+                self.ma.iloc[:,-len(cols):].dropna().plot(
                     title='{} hour moving average'.format(str(hours)),
                     logy=True,
                     grid=True,
@@ -42,9 +43,10 @@ class VarRelation:
                 
         elif type(cols) == str:
             try:
-                self.data['{}-{}MA'.format(cols, str(hours))] = self.data[cols].rolling(hours).mean()
+                self.ma['{}-{}MA'.format(cols, str(hours))] = self.ma[cols].rolling(hours).mean()
                 
-                self.data.iloc[:,-1:].dropna.plot(
+                plt.figure()
+                self.ma.iloc[:,-1:].dropna.plot(
                     title='{} hour moving average'.format(str(hours)),
                     logy=True,
                     grid=True,
@@ -68,7 +70,7 @@ class VarRelation:
     def plot_correlation_matrix(self):
         """Plot a correlation matrix"""
         
-        self.corr = self.data.corr()
+        self.corr = self.data.corr().copy()
     
         
         fig = plt.figure(figsize=(19, 15))
@@ -88,10 +90,12 @@ class VarRelation:
         
         
     def plot_numeric_correlation(self):
-        self.corr = self.data.corr()
+        self.corr = self.data.corr().copy()
         
+        fig1 = plt.figure()
+        ax = fig1.add_subplot(111)
         
-        sns.heatmap(self.corr, cmap="RdYlGn",
+        ax = sns.heatmap(self.corr, cmap="RdYlGn",
                     xticklabels=self.corr.columns.values,
                     yticklabels=self.corr.columns.values,
                     annot=True, square=True)
@@ -118,7 +122,7 @@ class VarRelation:
     
 if __name__ == '__main__':
     c = VarRelation()
-    #c.plot_moving_average(cols=['WS10', 'WS100', 'POWER'], hours=400)
+    c.plot_moving_average(cols=['WS10', 'WS100', 'POWER'], hours=400)
     #c.group_by_time()
     #c.plot_correlation_matrix()
     c.plot_numeric_correlation()

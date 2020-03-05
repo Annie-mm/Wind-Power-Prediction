@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Sun Mar 1 12:02:31 2020
+
+@author: Sigve Sørensen & Ernst-Martin Buduschin
+"""
 
 import pandas as pd
 import numpy as np

@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Mar 2 13:24:31 2020
+
+@author: Sigve Sørensen & Ernst-Martin Buduschin
+"""
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -101,13 +108,14 @@ class VarRelation:
     def plot_numeric_correlation(self):
         self.corr = self.data.corr().copy()
         
+        plt.figure(figsize=(10,8))
+        
         sns.heatmap(self.corr, cmap="RdYlGn",
                     xticklabels=self.corr.columns.values,
                     yticklabels=self.corr.columns.values,
                     annot=True, square=True)
         plt.xticks(rotation=45)
         plt.yticks(rotation=45)
-        #plt.
         plt.title('Correlation Matrix', fontsize=20)
         plt.show()
         
@@ -128,8 +136,8 @@ class VarRelation:
     
 if __name__ == '__main__':
     c = VarRelation()
-    #c.plot_moving_average(cols=['WS10', 'WS100', 'POWER'], hours=400)
-    c.group_by_time()
+    #c.plot_moving_average(cols=['WS10', 'WS100', 'POWER'], hours=24*30)
+    #c.group_by_time()
     #c.plot_correlation_matrix()
-    #c.plot_numeric_correlation()
+    c.plot_numeric_correlation()
     #c.plot_numeric_covariance()

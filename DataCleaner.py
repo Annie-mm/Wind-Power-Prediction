@@ -73,8 +73,6 @@ class DataCleaner:
         if _all:
             
             for col in self.columns:
-                # mean = self.data[col].mean()
-                # std = self.data[col].std()
                 mean = self.data[col][self.data[col] != -9999].mean()
                 std = self.data[col][self.data[col] != -9999].std()
                 print(std)

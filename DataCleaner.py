@@ -66,21 +66,27 @@ class DataCleaner:
         
         
         if _all:
-            for column in self.columns:
-                zero_count = 0
+            
+            for col in self.columns:
+                # mean = self.data[col].mean()
+                # std = self.data[col].std()
+                mean = self.data[col][self.data[col] != -9999].mean()
+                std = self.data[col][self.data[col] != -9999].std()
+                print(std)
                 outlier_count = 0
-                for val in self.data[column].values:
-                    if val == 0:
-                        zero_count += 1
-                    elif val == -9999:
+                zero_count = 0
+                for val in self.data[col]:
+                    if abs(val) > mean + 8 * std:
                         outlier_count += 1
+                    elif val == 0:
+                        zero_count += 1
                
-                self.zeros.loc[str(column)] = zero_count
-                self.outliers.loc[str(column)] = outlier_count
+                self.zeros.loc[str(col)] = zero_count
+                self.outliers.loc[str(col)] = outlier_count
                 
             self.missing = pd.concat([self.zeros, self.outliers, self.nans], 
-                                     axis=1, 
-                                     keys=['Zeros', 'Outliers', 'NaNs'])
+                                      axis=1, 
+                                      keys=['Zeros', 'Outliers', 'NaNs'])
         
             
         if plot:
@@ -88,14 +94,14 @@ class DataCleaner:
             f, ax = plt.subplots(figsize=(15, 6))
             
             ax.barh(self.missing.index, self.missing['Outliers'], 
-                    color='#21725F', label='Outliers', edgecolor='k', lw=0.5)
+                    color='#99FF99', label='Outliers', edgecolor='k', lw=0.5)
             
             ax.barh(self.missing.index, self.missing['NaNs'],
-                    color='#509B53', label='NaNs', edgecolor='k', lw=0.5,
+                    color='#fea05e', label='NaNs', edgecolor='k', lw=0.5,
                     left=self.missing['Outliers'])
             
             ax.barh(self.missing.index, self.missing['Zeros'],
-                    color='#FFF66B', label='Zeros', edgecolor='k', lw=0.5,
+                    color='#66b3ff', label='Zeros', edgecolor='k', lw=0.5,
                       left=np.array(self.missing['NaNs'])+
                       np.array(self.missing['Outliers']))
             
@@ -117,7 +123,7 @@ class DataCleaner:
             return self.missing
             
                 
-    def handle_missing_values(self, method=None, outliers=True, zeros=True):
+    def handle_missing_values(self, method=None, outliers=True, zeros=False):
         """Choose method for handling missing data"""
         
         self.method_dict = {
@@ -138,6 +144,10 @@ class DataCleaner:
             
             self.data.replace(-9999, np.nan, inplace=True)
             print("All -9999 values replaced by NaN")
+            
+            for col in self.columns:
+                self.data[col] = self.data[col].mask(self.data[col].sub(self.data[col].mean()).div(self.data[col].std()).abs().gt(8))
+            
         else:
             print("Proceeding without filling -9999 by NaN")
             
@@ -257,10 +267,10 @@ class DataCleaner:
                 
 if __name__ == "__main__":
     c = DataCleaner()
-    c.identify_missing_values()
-    c.handle_missing_values(method='mean')
-    c.identify_missing_values()
-    # c.save_cleaned_data(by='mean')
+    # c.identify_missing_values()
+    # c.handle_missing_values()
+    # c.identify_missing_values()
+    c.save_cleaned_data(by='mean')
     
     
     

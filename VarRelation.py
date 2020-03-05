@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from datetime import datetime
 
 class VarRelation:
     """Study the relationship between variables in dataset"""
@@ -21,10 +22,16 @@ class VarRelation:
         
         self.unique = self.data[col].unique()
         return self.unique
+
+
+    def same_day(self, date_string):
+        """remove year"""
+        return datetime.strptime(date_string, "%Y-%m-%d %h:%m:%s").strftime('%m-%d')
     
         
     def plot_moving_average(self, cols='POWER', hours=400):
         """Plot moving average for selected columns and hours"""
+        
         self.ma = self.data.copy()
         
         if type(cols) == list:
@@ -60,7 +67,9 @@ class VarRelation:
     def group_by_time(self, col=None):
         """Group features by time, and visualize"""
         
-        self.group = self.data.drop(['PRESS'], axis=1).groupby(pd.Grouper(freq='M')).mean()
+        #.drop(['PRESS'], axis=1)
+        
+        self.group = self.data.groupby(pd.Grouper(freq='H')).mean()
         #self.group = self.data[col].groupby(by=[self.data.index.day])
         
         self.group.plot()
@@ -92,10 +101,7 @@ class VarRelation:
     def plot_numeric_correlation(self):
         self.corr = self.data.corr().copy()
         
-        fig1 = plt.figure()
-        ax = fig1.add_subplot(111)
-        
-        ax = sns.heatmap(self.corr, cmap="RdYlGn",
+        sns.heatmap(self.corr, cmap="RdYlGn",
                     xticklabels=self.corr.columns.values,
                     yticklabels=self.corr.columns.values,
                     annot=True, square=True)
@@ -107,7 +113,7 @@ class VarRelation:
         
     
     def plot_numeric_covariance(self):
-        self.cov = self.data.cov()
+        self.cov = self.data.cov().copy()
         
         
         sns.heatmap(self.cov, cmap="RdYlGn",
@@ -122,8 +128,8 @@ class VarRelation:
     
 if __name__ == '__main__':
     c = VarRelation()
-    c.plot_moving_average(cols=['WS10', 'WS100', 'POWER'], hours=400)
-    #c.group_by_time()
+    #c.plot_moving_average(cols=['WS10', 'WS100', 'POWER'], hours=400)
+    c.group_by_time()
     #c.plot_correlation_matrix()
-    c.plot_numeric_correlation()
+    #c.plot_numeric_correlation()
     #c.plot_numeric_covariance()

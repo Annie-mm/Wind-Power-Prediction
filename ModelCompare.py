@@ -11,8 +11,6 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 import pickle
 
-from matplotlib import cm as CM
-from matplotlib import mlab as ML
 
 import sklearn
 from sklearn import linear_model
@@ -32,11 +30,11 @@ class CompareModels:
         except:
             raise ImportError("Missing file: 'data_by_mean.pkl")
             
-        self.data = self.data[['POWER', 'WS10', 'WS100']]
+        self.data = self.data[['POWER', 'WS100']]
         self.columns = self.data.columns
         
         
-    def LinearRegression(self, pairplot=False, run_model=True):
+    def LinearRegression(self, pairplot=False, run_model=True, runs=1000):
         """Perform a linear regression"""
         
         
@@ -47,138 +45,178 @@ class CompareModels:
         predict = 'POWER'
         predictor = 'WS100'
         
-        X = self.data.drop([predict], 1).values
+        X = self.data.drop([predict], 1).values.reshape(-1,1)
         y = self.data[predict].values
         
-        best = 0
+        best_acc = 0
         
         """Running the model 1000 times trying to find the best model"""
         if run_model:
-            for _ in range(1000):
+            for _ in range(runs):
             
-                x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
                 
                 linear = LinearRegression()
-                linear.fit(x_train, y_train)
-                acc = linear.score(x_test, y_test)
+                linear.fit(X_train, y_train)
+                acc = linear.score(X_test, y_test)
                 
                 
-                if acc > best:
+                if acc > best_acc:
                     print(acc)
-                    best = acc
+                    print(r2_score(y, linear.predict(X)))
+                    best_acc = acc
                     
-                    """Save our model with pickle. Saved with best result: 70.69 %""".format(best)
+                    """Save our model with the best accuracy"""
                     with open('linregmodel.pkl', 'wb') as f:
                         pickle.dump(linear, f)
                     
                     
+            print('Model saved')       
             print('Accuracy: {}'.format(acc))         # Accuracy for what the Power will be given 
             print('co: ', linear.coef_)               # Coefficients for attributes
             print('Intercept: ', linear.intercept_)   # Intercept of y
         
-        
-            
-        """Read in our pickle file"""
-        pickle_in = open('linregmodel.pkl', 'rb')
-        linear = pickle.load(pickle_in)
+        else:
+            try:
+                """Read in our pickle file"""
+                pickle_in = open('linregmodel.pkl', 'rb')
+                linear = pickle.load(pickle_in)
+                print('Polynomial regression model imported')
+            except:
+                raise ValueError('run_model set to False, missing file "linregmodel.pkl". Set run_model True to run and save model.')
         
         """Hexplot since big dataset"""
-        plt.hexbin(X[:,1], y, gridsize=20, cmap='Blues')
-        plt.axis([X[:,1].min(), X[:,1].max(), y.min(), y.max()])
+        plt.hexbin(X.flatten(), y, gridsize=20, cmap='Blues')
+        plt.axis([X.min(), X.max(), y.min(), y.max()])
         cb = plt.colorbar()
         cb.set_label('Scatter density')
         plt.plot(X, (linear.coef_*X+linear.intercept_), color='#417ed6', alpha=0.7, lw=0.7)
         plt.xlabel(predictor)
         plt.ylabel(predict)
         plt.tight_layout()
-        plt.show()
+        plt.show()       
         
         
-    def PolynomialRegression(self):
+        
+    def PolynomialRegression(self, run_model=True, runs=1):
         """Perform a polynomial regression"""
         
         from sklearn.preprocessing import PolynomialFeatures 
         
         predict = 'POWER'
+        predictor = 'WS100'
         
-        X = self.data.drop([predict], 1).values
+        X = self.data.drop([predict], 1).values.reshape(-1,1)
         y = self.data[predict].values
         
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=0)
+        best_acc = 0
         
-        best = 0
-        
-        for _ in range(1000):
-            
-            x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=0.1)
-        
-            linear = linear_model.LinearRegression()
-            linear.fit(x_train, y_train)
-            
-            poly = PolynomialFeatures(degree = 4) 
-            X_poly = poly.fit_transform(x_train) 
-            poly.fit(X_poly, y_train) 
-            
-            
-            acc = linear.score(x_test, y_test)
-            
-            if acc > best:
-                print(acc)
-                best = acc
+        if run_model:
+            for _ in range(runs):
                 
-                """Save our model with pickle. Saved with best result:  %""".format(best)
-                with open('linregmodel.pkl', 'wb') as f:
-                    pickle.dump(linear, f)
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
                 
                 
-        print('Accuracy: {}'.format(acc))         # Accuracy for what the Power will be given 
-        print('co: ', linear.coef_)               # Coefficients for attributes
-        print('Intercept: ', linear.intercept_)   # Intercept of y
-        
+                
+                poly_reg = PolynomialFeatures(degree = 6)
+                X_poly = poly_reg.fit_transform(X) 
+                poly_reg.fit(X_poly, y)
+                reg = LinearRegression()
+                reg.fit(X_poly, y)
+                
 
-            
-        """Read in our pickle file"""
-        pickle_in = open('linregmodel.pkl', 'rb')
-        linear = pickle.load(pickle_in)
+                
+                acc = round(reg.score(X_poly, y),4)
+                
+                if acc > best_acc:
+                    print(acc)
+                    best_acc = acc
+                    
+                    """Save our model with pickle. Saved with best result: 70.69 %"""
+                    with open('linregmodel.pkl', 'wb') as f:
+                        pickle.dump(poly_reg, f)
+                
+                
+            print('Model saved')      
+            print('Accuracy: {}'.format(acc))         # Accuracy for what the Power will be given 
+            print('co: ', reg.coef_)               # Coefficients for attributes
+            print('Intercept: ', reg.intercept_)   # Intercept of y
         
-        p = 'WS100' # Predictor variable
+        else:
+            try:
+                """Read in our pickle file"""
+                pickle_in = open('polyregmodel.pkl', 'rb')
+                poly_reg = pickle.load(pickle_in)
+                print('Polynomial regression model imported')
+            except:
+                raise ValueError('run_model set to False, missing file "polyregmodel.pkl". Set run_model True to run and save model')
         
-        plt.figure()
-        plt.scatter(self.data[p], self.data[predict])
-        plt.plot(X, linear.predict(poly.fit_transform(X)), color = 'red')
-        plt.xlabel(p)
-        plt.ylabel('Power')
+        #poly = reg.intercept_ + reg.coef_[0]*X + reg.coef_[1]*y +reg.coef_[2]*X*X + reg.coef_[3]*X*y + reg.coef_[4]*y*y + reg.coef_[5]*X**3 + reg.coef_[6]*X**2*y
+        
+        """Hexplot since big dataset"""
+        plt.hexbin(X.flatten(), y, gridsize=20, cmap='Blues')
+        plt.axis([X.min(), X.max(), y.min(), y.max()])
+        cb = plt.colorbar()
+        cb.set_label('Scatter density')
+        plt.plot(X, reg.predict(poly_reg.fit_transform(X)), color='#417ed6', alpha=0.7, lw=0.7)
+        plt.xlabel(predictor)
+        plt.ylabel(predict)
         plt.tight_layout()
         plt.show()
         
         
+    def PolynomialRegressionNumpy(self, degree=6, plot=True):
+        """Polynomial regression"""
+        
+        predict = 'POWER'
+        predictor = 'WS100'
+        
+        X = self.data[predictor].values
+        y = self.data[predict].values
+        
+        polynomialOrder = degree
+        
+        """Curve fit the test data"""
+        fittedParameters = np.polyfit(X, y, polynomialOrder)
+        print('Fitted Parameters:', fittedParameters)
+        
+        modelPredictions = np.polyval(fittedParameters, X)
+        absError = modelPredictions - y
+        
+        SE = np.square(absError) # squared errors
+        MSE = np.mean(SE) # mean squared errors
+        RMSE = np.sqrt(MSE) # Root Mean Squared Error, RMSE
+        Rsquared = 1.0 - (np.var(absError) / np.var(y))
+        print('RMSE:', RMSE)
+        print('R-squared:', Rsquared)
         
         
+        if plot:
+            f = plt.figure(figsize=(8, 6), dpi=100)
+            axes = f.add_subplot(111)
         
+            """Plot raw data as a hexplot"""
+            axes.hexbin(X, y, gridsize=20, cmap='Blues')
+            axes.axis([X.min(), X.max(), y.min(), y.max()])
         
+            """create data for the fitted equation plot"""
+            xModel = np.linspace(min(X), max(X))
+            yModel = np.polyval(fittedParameters, xModel)
         
+            """Plot model"""
+            axes.plot(xModel, yModel)
+            axes.set_xlabel(predictor)
+            axes.set_ylabel(predict)
         
+            plt.show()
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+
         
 
 if __name__ == '__main__':
     c = CompareModels()
-    c.LinearRegression(run_model=False)
+    #c.LinearRegression(run_model=True)
     #c.PolynomialRegression()
+    c.PolynomialRegressionNumpy()
 
 

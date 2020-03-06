@@ -30,7 +30,7 @@ class CompareModels:
         except:
             raise ImportError("Missing file: 'data_by_mean.pkl")
             
-        self.data = self.data[['POWER', 'WS100']]
+        self.data = self.data[['POWER', 'WS10', 'WS100']]
         self.columns = self.data.columns
         
         
@@ -174,21 +174,21 @@ class CompareModels:
         X = self.data[predictor].values
         y = self.data[predict].values
         
-        polynomialOrder = degree
+        polynomial_order = degree
         
         """Curve fit the test data"""
-        fittedParameters = np.polyfit(X, y, polynomialOrder)
-        print('Fitted Parameters:', fittedParameters)
+        fitted_parameters = np.polyfit(X, y, polynomial_order)
+        print('Fitted Parameters:', fitted_parameters)
         
-        modelPredictions = np.polyval(fittedParameters, X)
-        absError = modelPredictions - y
+        model_predictions = np.polyval(fitted_parameters, X)
+        abs_error = model_predictions - y
         
-        SE = np.square(absError) # squared errors
-        MSE = np.mean(SE) # mean squared errors
-        RMSE = np.sqrt(MSE) # Root Mean Squared Error, RMSE
-        Rsquared = 1.0 - (np.var(absError) / np.var(y))
-        print('RMSE:', RMSE)
-        print('R-squared:', Rsquared)
+        se = np.square(abs_error) # squared errors
+        mse = np.mean(se) # mean squared errors
+        rmse = np.sqrt(mse) # Root Mean Squared Error, RMSE
+        r_squared = 1.0 - (np.var(abs_error) / np.var(y))
+        print('RMSE:', rmse)
+        print('R-squared:', r_squared)
         
         
         if plot:
@@ -200,13 +200,14 @@ class CompareModels:
             axes.axis([X.min(), X.max(), y.min(), y.max()])
         
             """create data for the fitted equation plot"""
-            xModel = np.linspace(min(X), max(X))
-            yModel = np.polyval(fittedParameters, xModel)
+            x_model = np.linspace(min(X), max(X))
+            y_model = np.polyval(fitted_parameters, x_model)
         
             """Plot model"""
-            axes.plot(xModel, yModel)
+            axes.plot(x_model, y_model)
             axes.set_xlabel(predictor)
             axes.set_ylabel(predict)
+            plt.tight_layout()
         
             plt.show()
         

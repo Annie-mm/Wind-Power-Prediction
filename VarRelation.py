@@ -133,11 +133,56 @@ class VarRelation:
         plt.title('Covariance Matrix', fontsize=20)
         plt.show()
         
-    
+    def plot_monthly_power_speed_relation(self, setting='monthly'):
+        fig = plt.figure(figsize=(12, 8))
+        date = pd.to_datetime(self.data.index)
+        data = self.data.filter(['POWER', 'WS100', 'WS10'])
+        data['year'] = date.year
+        data['month'] = date.month
+        months = set(date.month)
+        years = set(date.year)
+        mean_data = pd.DataFrame()
+        for yr in years:
+            for mnth in months:
+                tmp_data = data[(data['year'] == yr) & (data['month'] == mnth)]
+                if not tmp_data.empty:
+                    tmp = tmp_data.filter(['POWER', 'WS10', 'WS100']).mean()
+                    tmp['TIMESTAMP'] = pd.Timestamp(yr, mnth, 15).month_name()
+                    mean_data = mean_data.append(tmp, ignore_index=True)
+        mean_data.set_index('TIMESTAMP', inplace=True)
+        ax = mean_data.plot(
+            ax=fig.gca(),
+            kind='bar',
+            y=['POWER'],
+            # y=['POWER', 'WS100', 'WS10', ],
+            # secondary_y=['WS100', 'WS10',],
+            position=1,
+            width=.4,
+            # rot=0
+            )
+        mean_data.plot(
+            ax=ax,
+            kind='bar',
+            y=['WS10', 'WS100'],
+            color=plt.rcParams['axes.prop_cycle'].by_key()['color'][1:3],
+            position=0,
+            width=.4,
+            secondary_y=True, 
+            stacked=True,
+            rot=45,
+            )
+        ax.set_ylabel('average normalized power')
+        ax.right_ax.set_ylabel('average wind speed (m/s)')
+        ax.set_xlabel('month')
+        ax.set_xlim([-.75, None])
+
+        
+        
 if __name__ == '__main__':
     c = VarRelation()
-    #c.plot_moving_average(cols=['WS10', 'WS100', 'POWER'], hours=24*30)
-    #c.group_by_time()
-    #c.plot_correlation_matrix()
-    c.plot_numeric_correlation()
-    #c.plot_numeric_covariance()
+    # c.plot_moving_average(cols=['WS10', 'WS100', 'POWER'], hours=24*30)
+    # c.group_by_time()
+    # c.plot_correlation_matrix()
+    # c.plot_numeric_correlation()
+    # c.plot_numeric_covariance()
+    c.plot_monthly_power_speed_relation()

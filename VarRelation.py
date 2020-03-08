@@ -134,6 +134,7 @@ class VarRelation:
         plt.show()
         
     def plot_monthly_power_speed_relation(self, setting='monthly'):
+        """Plot monthly average of power and wind speed as bar."""
         fig = plt.figure(figsize=(12, 8))
         date = pd.to_datetime(self.data.index)
         data = self.data.filter(['POWER', 'WS100', 'WS10'])
@@ -156,27 +157,76 @@ class VarRelation:
             y=['POWER'],
             # y=['POWER', 'WS100', 'WS10', ],
             # secondary_y=['WS100', 'WS10',],
+            color=plt.rcParams['axes.prop_cycle'].by_key()['color'][1],
             position=1,
             width=.4,
-            # rot=0
+            rot=45,
             )
         mean_data.plot(
             ax=ax,
             kind='bar',
-            y=['WS10', 'WS100'],
-            color=plt.rcParams['axes.prop_cycle'].by_key()['color'][1:3],
+            y='WS100',
+            color=plt.rcParams['axes.prop_cycle'].by_key()['color'][0],
             position=0,
             width=.4,
             secondary_y=True, 
-            stacked=True,
             rot=45,
             )
+        # mean_data.plot(
+        #     ax=ax,
+        #     kind='bar',
+        #     y='WS10',
+        #     color=plt.rcParams['axes.prop_cycle'].by_key()['color'][2],
+        #     position=0,
+        #     width=.4,
+        #     secondary_y=True, 
+        #     rot=45,
+        #     )     
         ax.set_ylabel('average normalized power')
         ax.right_ax.set_ylabel('average wind speed (m/s)')
         ax.set_xlabel('month')
         ax.set_xlim([-.75, None])
 
+    def plot_daytime_comparison(self, data_type='POWER', mov_av=30):
+        """Daytime power output comparison.
         
+        PARAMETERS
+        ----------
+        data_type: string
+            either 'POWER','WS10','WS100'
+        mov_av: int
+            defines the number of days used for moving average
+        """
+        fig = plt.figure(figsize=(12, 8))
+        data = self.data.filter(['POWER', 'WS100', 'WS10'])
+        times = range(0,12)
+        power_output = {}
+        # detect most diverse day-night average
+        for t in times:
+            tmp = data.resample(rule='12H', base=t).mean()
+            tmp = tmp.groupby(tmp.index.hour)[data_type].mean()
+            power_output[str(t) + '-' + str(12+t)] = [tmp[t], tmp[t+12], abs(tmp[t]-tmp[t+12])]
+        power_output = pd.DataFrame(power_output, index=['early', 'late', 'delta'])
+        t = times[power_output.loc['delta'].values.argmax()]
+        delta_mean = round(power_output.loc['delta'].max(), 5)
+        mean_data = data.resample(rule='12H', base=t).mean()
+        power = pd.DataFrame({
+            str(t) + '-' + str(12+t): mean_data[data_type][mean_data.index.hour == t],
+            str(12+t) + '-' + str((24+t) % 24): mean_data[data_type][mean_data.index.hour == 12+t],
+        })
+        power[str(12+t) + '-' + str((24+t) % 24)].fillna(method='bfill', inplace=True)
+        power = power.drop(power.index[power.index.hour == 12+t]).rolling(window=mov_av).mean().dropna()
+        power.plot(
+            ax=fig.gca(),
+            title='daytime comparison - moving av.: ' + str(mov_av) + ' days - delta mean: ' + str(delta_mean),
+        )
+        if data_type == 'POWER':
+            ylabel = 'normalised' + data_type
+        else:
+            ylabel = data_type + ' (m/s)'
+        fig.gca().set_ylabel(ylabel)
+        print('Optimal daytime difference: ' + str(t) + '-' + str(12+t) + '/' + str(12+t) + '-' + str((24+t) % 24) +
+              '\nMoving average: ' + str(mov_av) + ' days')
         
 if __name__ == '__main__':
     c = VarRelation()
@@ -185,4 +235,5 @@ if __name__ == '__main__':
     # c.plot_correlation_matrix()
     # c.plot_numeric_correlation()
     # c.plot_numeric_covariance()
-    c.plot_monthly_power_speed_relation()
+    # c.plot_monthly_power_speed_relation()
+    c.plot_daytime_comparison(data_type='WS100', mov_av=40)

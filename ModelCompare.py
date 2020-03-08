@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sb
 import pickle
+import matplotlib as mlt
 
 
 import sklearn
@@ -86,7 +87,7 @@ class CompareModels:
                 raise ValueError('run_model set to False, missing file "linregmodel.pkl". Set run_model True to run and save model.')
         
         """Hexplot since big dataset"""
-        plt.hexbin(X.flatten(), y, gridsize=20, cmap='Blues')
+        plt.hexbin(X.flatten(), y, gridsize=20, cmap='Blues', norm=mlt.colors.LogNorm())
         plt.axis([X.min(), X.max(), y.min(), y.max()])
         cb = plt.colorbar()
         cb.set_label('Scatter density')
@@ -217,7 +218,7 @@ class CompareModels:
 if __name__ == '__main__':
     c = CompareModels()
     #c.LinearRegression(run_model=True)
-    #c.PolynomialRegression()
-    c.PolynomialRegressionNumpy()
+    c.PolynomialRegression()
+    # c.PolynomialRegressionNumpy()
 
 

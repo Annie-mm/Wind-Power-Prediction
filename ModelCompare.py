@@ -11,21 +11,6 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 import pickle
 import matplotlib as mlt
-
-
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Mar 5 17:45:50 2020
-
-@author: Sigve Sørensen & Ernst-Martin Buduschin
-"""
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sb
-import pickle
-import matplotlib as mlt
 from math import sqrt
 
 import sklearn
@@ -74,23 +59,18 @@ class CompareModels:
         plt.show()    
         
         
-    def LinearRegression(self, pairplot=False, run_model=True, runs=1000):
+    def LinearRegression(self, run_model=True, runs=1500):
         """Perform a linear regression"""
-        import matplotlib
-        
-        if pairplot:
-            sb.pairplot(self.data)
-            plt.show()
             
-        predict = 'POWER'
-        predictor = 'WS100'
+        target = 'POWER'    # Target variable
+        feature = 'WS100'   # Feature variable
         
-        X = self.data[predictor].values.reshape(-1,1)
-        y = self.data[predict].values
+        X = self.data[feature].values.reshape(-1,1)
+        y = self.data[target].values
         
         best_acc = 0
         
-        """Running the model 1000 times trying to find the best model"""
+        """Running the model 1500 times trying to find the best model"""
         if run_model:
             for _ in range(runs):
             
@@ -98,23 +78,27 @@ class CompareModels:
                 
                 linear = LinearRegression()
                 linear.fit(X_train, y_train)
-                acc = linear.score(X_test, y_test)
                 
+                y_pred = linear.predict(X_test)
+                acc = r2_score(y_test, y_pred)
+                rmse = sqrt(mean_squared_error(y_test, y_pred))
+                nrmse = rmse / y.mean()
                 
                 if acc > best_acc:
-                    print(acc)
+                    print('Model Accuracy: {} %'.format(round(acc*100,3)))
                     best_acc = acc
                     
                     """Save our model with the best accuracy"""
                     with open('linregmodel.pkl', 'wb') as handle:
                         pickle.dump(linear, handle)
-                    
-                    
-            print('Model saved')       
-            print('Accuracy: {}'.format(best_acc))    # Accuracy for what the Power will be given 
-            print('co: ', linear.coef_)               # Coefficients for attributes
-            print('Intercept: ', linear.intercept_)   # Intercept of y
-        
+                        
+            print('----------Model saved----------')       
+            print('R-squared: {}'.format(best_acc))   # Accuracy for what the Power will be given
+            print('RMSE: {}'.format(rmse))            # Root Mean Square Error (RMSE)
+            print('NRMSE: {}'.format(nrmse))          # Normalized Root Mean Square Error (NRMSE)
+            print('Coeff: ', linear.coef_)            # Coefficients for attributes (a)
+            print('Intercept: ', linear.intercept_)   # Intercept of y (b)
+            
         else:
             try:
                 """Read in our pickle file"""
@@ -124,19 +108,20 @@ class CompareModels:
             except:
                 raise ValueError('run_model set to False, missing file "linregmodel.pkl". Set run_model True to run and save model.')
         
-        """Hexplot since big dataset"""
+        """Plotting the best fit linear regression line"""
         f = plt.figure(figsize=(8, 6), dpi=100)
         ax = f.add_subplot(111)
         
-        ax.hexbin(X.flatten(), y, gridsize=28, cmap='Blues', norm=matplotlib.colors.LogNorm())
+        ax.hexbin(X[:,0], y, gridsize=28, cmap='Blues', norm=mlt.colors.LogNorm()) # Plotting data distribution
         ax.axis([X.min(), X.max(), y.min(), y.max()])
         pcm = ax.get_children()[0]
         cb = plt.colorbar(pcm, ax=ax,)
-        cb.set_label('Data point density')
-        ax.plot(X, (linear.coef_*X+linear.intercept_), color='k', alpha=0.4, lw=3)
-        plt.xlabel(predictor)
-        plt.ylabel(predict)
-        plt.title('Linear Regression Fit, Acc={}'.format(best_acc))
+        cb.set_label('Data point density', fontsize=13)
+        
+        ax.plot(X_test, y_pred, color='k', alpha=0.4, lw=3) # Linear Regression line
+        plt.xlabel(feature, fontsize=13)
+        plt.ylabel(target, fontsize=13)
+        plt.title('Linear Regression Fit, Acc = {} %'.format(round(best_acc*100, 3)), fontsize=15)
         plt.tight_layout()
         plt.show()       
         
@@ -200,14 +185,15 @@ class CompareModels:
         
         from sklearn.preprocessing import PolynomialFeatures 
         
-        predict = 'POWER'
-        predictor = 'WS100'
+        target = 'POWER'    # Target variable
+        feature = 'WS100'   # Feature variable
         
         X = self.data[predictor].values.reshape(-1,1)
-        y = self.data[predict].values
+        y = self.data[feature].values
         
-        best_acc = 0
+        best_acc = 0 # Store best accuracy
         
+        """Looping to find the best fit polynomial regression model"""
         if run_model:
             for _ in range(runs):
                 
@@ -249,8 +235,8 @@ class CompareModels:
         cb = plt.colorbar()
         cb.set_label('Scatter density')
         plt.plot(X, reg.predict(poly_reg.fit_transform(X)), color='#417ed6', alpha=0.7, lw=0.7)
-        plt.xlabel(predictor)
-        plt.ylabel(predict)
+        plt.xlabel(feature)
+        plt.ylabel(target)
         plt.tight_layout()
         plt.show()
         
@@ -502,12 +488,10 @@ class CompareModels:
 if __name__ == '__main__':
     c = CompareModels()
     #c.kNNeighborsRegression()
-    #c.LinearRegression()
-    c.MultipleRegression()
+    c.LinearRegression()
+    #c.MultipleRegression()
     #c.PolynomialRegression()
     #c.PolynomialRegressionNumpy(degree=6)
     #c.SupportVectorRegression()
     #c.scatterplot_winds()
     #c.LinearRegression(run_model=True)
-    #c.PolynomialRegression()
-    # c.PolynomialRegressionNumpy()

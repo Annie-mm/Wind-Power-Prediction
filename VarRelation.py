@@ -29,11 +29,6 @@ class VarRelation:
         
         self.unique = self.data[col].unique()
         return self.unique
-
-
-    def same_day(self, date_string):
-        """remove year"""
-        return datetime.strptime(date_string, "%Y-%m-%d %h:%m:%s").strftime('%m-%d')
     
         
     def plot_moving_average(self, cols='POWER', hours=400):
@@ -232,8 +227,8 @@ if __name__ == '__main__':
     c = VarRelation()
     # c.plot_moving_average(cols=['WS10', 'WS100', 'POWER'], hours=24*30)
     # c.group_by_time()
-    # c.plot_correlation_matrix()
-    c.plot_numeric_correlation()
+    #c.plot_correlation_matrix()
+    #c.plot_numeric_correlation()
     # c.plot_numeric_covariance()
-    #c.plot_monthly_power_speed_relation()
-    #c.plot_daytime_comparison(data_type='WS100', mov_av=40)
+    c.plot_monthly_power_speed_relation()
+    c.plot_daytime_comparison(data_type='WS100', mov_av=40)

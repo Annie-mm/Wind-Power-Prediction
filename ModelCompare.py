@@ -25,12 +25,14 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 import pickle
 import matplotlib as mlt
-
+from math import sqrt
 
 import sklearn
+from sklearn import neighbors
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split 
-from sklearn.preprocessing import scale
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import scale, MinMaxScaler
 from sklearn.metrics import r2_score, mean_squared_error
 from collections import Counter
 
@@ -44,7 +46,7 @@ class CompareModels:
         except:
             raise ImportError("Missing file: 'data_by_mean.pkl")
             
-        self.data = self.data[['POWER', 'WS10', 'WS100']]
+        self.data = self.data[['POWER', 'WS10', 'WS100', 'V10', 'V100']]
         self.columns = self.data.columns
         
         
@@ -70,7 +72,8 @@ class CompareModels:
         plt.ylabel(predict)
         plt.title('Linear Regression Fit')
         plt.tight_layout()
-        plt.show()       
+        plt.show()    
+        
         
     def LinearRegression(self, pairplot=False, run_model=True, runs=1000):
         """Perform a linear regression"""
@@ -254,22 +257,102 @@ class CompareModels:
             plt.tight_layout()
             plt.show() 
             
+            
     
-    def KNN(self):
-        pass    
-            
-            
-            
-            
-    def LinearRegressionNumpy(self, plot=True, model=True):
-        
-        predict = 'POWER'
-        predictor = 'WS100'
-        
-        X = self.data.drop(self.data[predict], 1).values
-        y = self.data[predict].values
+    def kNNeighborsRegression(self, plot=True, fit_model=True, det_k=True, plot_k=True):
+        """kNN Regression"""
         
         
+        if fit_model: 
+            
+            predict = 'POWER'
+            predictor = 'WS100'
+            
+            X = self.data[predictor].values.reshape(-1,1)
+            #y = self.data.drop([predict], 1).values
+            y = self.data[predict].values
+            
+            best_acc = 0    # Store best accuracy
+            runs = 100      # Number of loops to find best fit
+            n_neigh = 37    # How many points are considered as neighbors
+            
+            if det_k:
+                lowest_rmse = 1
+                store_rmse = []
+                for k in range(100):
+                    k = k + 1
+                    knn = KNeighborsRegressor(k)
+                    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+                    knn.fit(X_train, y_train)
+                    y_pred_knn = knn.predict(X_test)
+                    rmse = sqrt(mean_squared_error(y_test, knn.predict(X_test)))
+                    store_rmse.append(rmse)
+                    if rmse < lowest_rmse:
+                        lowest_rmse = rmse
+                        n_neigh = k
+                print('n neighbors set to {}'.format(n_neigh))
+                
+                if plot_k:
+                    k_plot = pd.DataFrame(store_rmse)
+                    k_plot.plot()
+                    plt.show()
+                    
+            
+            knn = KNeighborsRegressor(n_neighbors=n_neigh) # Model
+            
+            """Run the kNN fitting n times (runs) to find the best fit and save model"""
+            for _ in range(runs):
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+                
+                #kNN model fit:
+                knn.fit(X_train, y_train)
+                
+                #Predict:
+                y_pred_knn = knn.predict(X_test)
+                
+                acc = r2_score(y_test, knn.predict(X_test))
+                rmse = sqrt(mean_squared_error(y_test, knn.predict(X_test)))
+                
+                if acc > best_acc:
+                    best_acc = acc
+                    
+                    """Save our model with the best accuracy"""
+                    with open('knnmodel.pkl', 'wb') as handle:
+                        pickle.dump(knn, handle)
+                        
+                        
+            print('Model saved')       
+            print('Accuracy: {}'.format(best_acc))  
+            print('k: {}'.format(n_neigh))        
+            print('Root Mean Squared Error: {}'.format(rmse))
+        else:
+            try:
+                """Read in our pickled model"""
+                pickle_in = open('knnmodel.pkl', 'rb')
+                knn = pickle.load(pickle_in)
+                print('kNN model imported')
+            except:
+                raise ValueError('fit_model set to False, missing file "knnmodel.pkl". Set run_model True to fit model')
+        
+
+        
+        if plot:
+            
+            f = plt.figure(figsize=(8, 6), dpi=100)
+            ax = f.add_subplot(111)
+            
+            ax.hexbin(X_test[:,0], y_pred_knn, gridsize=28, cmap='PuBu', norm=mlt.colors.LogNorm())
+            ax.axis([X.min(), X.max(), y.min(), y.max()])
+            pcm = ax.get_children()[0]
+            cb = plt.colorbar(pcm, ax=ax)
+            cb.set_label('Data point density')
+            plt.xlabel(predictor)
+            #plt.xlabel(str(self.data.columns.drop([predict]).values))
+            plt.ylabel(predict)
+            plt.title('kNN Regression, k = {}'.format(n_neigh))
+            plt.tight_layout()
+            plt.show() 
+       
         
         
     def SupportVectorRegression(self, plot=True, model=True):
@@ -367,11 +450,12 @@ class CompareModels:
 
 if __name__ == '__main__':
     c = CompareModels()
+    c.kNNeighborsRegression()
     #c.LinearRegression()
     #c.PolynomialRegression()
-    c.PolynomialRegressionNumpy(degree=6)
+    #c.PolynomialRegressionNumpy(degree=6)
     #c.SupportVectorRegression()
     #c.scatterplot_winds()
     #c.LinearRegression(run_model=True)
-    c.PolynomialRegression()
+    #c.PolynomialRegression()
     # c.PolynomialRegressionNumpy()

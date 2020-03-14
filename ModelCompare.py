@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Mar 5 17:45:50 2020
+
 @author: Sigve Sørensen & Ernst-Martin Buduschin
 """
 
@@ -39,6 +40,8 @@ from collections import Counter
 
 
 class CompareModels:
+    """Compare several regression models for the best model fit"""
+    
     def __init__(self):
         
         try:
@@ -46,13 +49,12 @@ class CompareModels:
         except:
             raise ImportError("Missing file: 'data_by_mean.pkl")
             
-        self.data = self.data[['POWER', 'WS10', 'WS100', 'V10', 'V100']]
+        self.data = self.data[['POWER', 'WS10', 'WS100', 'U10', 'U100']]
         self.columns = self.data.columns
         
         
     def scatterplot_winds(self):
-        
-        import matplotlib
+        """Compare power distribution for the two wind-speeds"""
         
         f = plt.figure(figsize=(8, 6), dpi=100)
         ax = f.add_subplot(111)
@@ -65,12 +67,9 @@ class CompareModels:
         ax.scatter(x2, y, color='g', alpha=0.1)
         
         ax.axis([x1.min(), x2.max(), y.min(), y.max()])
-        #pcm = ax.get_children()[0]
-        #cb = plt.colorbar(pcm, ax=ax,)
-        #cb.set_label('Data point density')
-        plt.xlabel(predictor)
-        plt.ylabel(predict)
-        plt.title('Linear Regression Fit')
+        plt.xlabel('WS10, WS100')
+        plt.ylabel('POWER')
+        plt.title('Comparing wind-speeds at heights 10m and 100m')
         plt.tight_layout()
         plt.show()    
         
@@ -135,17 +134,65 @@ class CompareModels:
         cb = plt.colorbar(pcm, ax=ax,)
         cb.set_label('Data point density')
         ax.plot(X, (linear.coef_*X+linear.intercept_), color='k', alpha=0.4, lw=3)
-        plt.hexbin(X.flatten(), y, gridsize=20, cmap='Blues', norm=mlt.colors.LogNorm())
-        plt.axis([X.min(), X.max(), y.min(), y.max()])
-        cb = plt.colorbar()
-        cb.set_label('Scatter density')
-        plt.plot(X, (linear.coef_*X+linear.intercept_), color='#417ed6', alpha=0.7, lw=0.7)
         plt.xlabel(predictor)
         plt.ylabel(predict)
-        plt.title('Linear Regression Fit')
+        plt.title('Linear Regression Fit, Acc={}'.format(best_acc))
         plt.tight_layout()
         plt.show()       
         
+        
+    def MultipleRegression(self, pair_plot=False):
+        """Perform a multiple regression"""
+        
+        from statsmodels.stats.outliers_influence import variance_inflation_factor
+        import statsmodels.api as sm
+        
+        X = self.data.drop(['POWER', 'WS10', 'U10'], axis=1)
+        y = self.data['POWER']
+        
+        """
+        Variance inflation factor VIF
+        In turn removing any feature with VIF > 30, dropping them above
+        Getting rid of multicolinearity, ind. var. that highly relate to each other
+        """
+        vif = pd.DataFrame()
+        vif['VIF Factor'] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
+        vif['features'] = X.columns
+        print(vif.round())
+        
+        if pair_plot:
+            sb.pairplot(self.data, x_vars=['WS100', 'U100'], y_vars=['POWER'], plot_kws={"s": 3})
+            plt.show()
+            
+        """
+        Backward elimination:
+        POWER=b0+b1*"WS100"+b2*"U100"
+        POWER=b0*1+b1*"WS100"+b2*"U100"
+        Need to add one more feature, a constant 1
+        """
+        
+        X=sm.add_constant(X)
+        #print(X.head())
+        regressorOLS = sm.OLS(y, X).fit()
+        print(regressorOLS.summary())
+        
+        """
+        No P>|t| greater than significance level 0.05. Keep features
+        Can now create our model:
+        """
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
+        
+        #Train model
+        linear_reg = LinearRegression()
+        linear_reg.fit(X_train, y_train)
+        
+        #Predict
+        y_pred = linear_reg.predict(X_test)
+        
+        sb.distplot(y_test, color='r', label='Actual Values', hist=False)
+        sb.distplot(y_pred, color='g', label='Predicted Values', hist=False)
+        plt.show()
         
         
     def PolynomialRegression(self, run_model=True, runs=1):
@@ -265,8 +312,8 @@ class CompareModels:
         
         if fit_model: 
             
-            predict = 'POWER'
-            predictor = 'WS100'
+            predict = "POWER"
+            predictor = "WS100"
             
             X = self.data[predictor].values.reshape(-1,1)
             #y = self.data.drop([predict], 1).values
@@ -277,6 +324,7 @@ class CompareModels:
             n_neigh = 37    # How many points are considered as neighbors
             
             if det_k:
+                """Determine the optimal number of neighbors"""
                 lowest_rmse = 1
                 store_rmse = []
                 for k in range(100):
@@ -293,8 +341,12 @@ class CompareModels:
                 print('n neighbors set to {}'.format(n_neigh))
                 
                 if plot_k:
+                    """Display the RMSE as a function of k"""
+                    plt.figure(figsize=(10,8))
                     k_plot = pd.DataFrame(store_rmse)
                     k_plot.plot()
+                    plt.xlabel("k neighbors")
+                    plt.ylabel("RMSE")
                     plt.show()
                     
             
@@ -337,10 +389,9 @@ class CompareModels:
 
         
         if plot:
-            
+            """Display kNN regression"""
             f = plt.figure(figsize=(8, 6), dpi=100)
             ax = f.add_subplot(111)
-            
             ax.hexbin(X_test[:,0], y_pred_knn, gridsize=28, cmap='PuBu', norm=mlt.colors.LogNorm())
             ax.axis([X.min(), X.max(), y.min(), y.max()])
             pcm = ax.get_children()[0]
@@ -450,8 +501,9 @@ class CompareModels:
 
 if __name__ == '__main__':
     c = CompareModels()
-    c.kNNeighborsRegression()
+    #c.kNNeighborsRegression()
     #c.LinearRegression()
+    c.MultipleRegression()
     #c.PolynomialRegression()
     #c.PolynomialRegressionNumpy(degree=6)
     #c.SupportVectorRegression()

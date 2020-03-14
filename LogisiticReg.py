@@ -142,6 +142,6 @@ class LogReg:
     
 if __name__ == '__main__':
     obj = LogReg()
-    # print(obj.data['POWER'])
+    #print(obj.data['POWER'])
     obj.compute_confusion_matrix()
     

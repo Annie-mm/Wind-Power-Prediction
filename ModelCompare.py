@@ -11,16 +11,15 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 import pickle
 import matplotlib as mlt
-from math import sqrt
+import statsmodels.api as sm
 
-import sklearn
-from sklearn import neighbors
+from math import sqrt
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.preprocessing import scale, MinMaxScaler
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import PolynomialFeatures
 from sklearn.metrics import r2_score, mean_squared_error
-from collections import Counter
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 
 
@@ -59,7 +58,7 @@ class CompareModels:
         plt.show()    
         
         
-    def LinearRegression(self, run_model=True, runs=1500):
+    def LinearRegression(self, model=True, runs=1500):
         """Perform a linear regression"""
             
         target = 'POWER'    # Target variable
@@ -70,8 +69,8 @@ class CompareModels:
         
         best_acc = 0
         
-        """Running the model 1500 times trying to find the best model"""
-        if run_model:
+        """Looping to find the best fit linear model"""
+        if model:
             for _ in range(runs):
             
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
@@ -104,7 +103,7 @@ class CompareModels:
                 """Read in our pickle file"""
                 pickle_in = open('linregmodel.pkl', 'rb')
                 linear = pickle.load(pickle_in)
-                print('Polynomial regression model imported')
+                print('Linear regression model imported')
             except:
                 raise ValueError('run_model set to False, missing file "linregmodel.pkl". Set run_model True to run and save model.')
         
@@ -112,7 +111,7 @@ class CompareModels:
         f = plt.figure(figsize=(8, 6), dpi=100)
         ax = f.add_subplot(111)
         
-        ax.hexbin(X[:,0], y, gridsize=28, cmap='Blues', norm=mlt.colors.LogNorm()) # Plotting data distribution
+        ax.hexbin(X, y, gridsize=28, cmap='Blues', norm=mlt.colors.LogNorm()) # Plotting data distribution
         ax.axis([X.min(), X.max(), y.min(), y.max()])
         pcm = ax.get_children()[0]
         cb = plt.colorbar(pcm, ax=ax,)
@@ -126,13 +125,11 @@ class CompareModels:
         plt.show()       
         
         
-    def MultipleRegression(self, pair_plot=False):
+    def MultipleRegression(self, pair_plot=False, model=True, runs=1500):
         """Perform a multiple regression"""
         
-        from statsmodels.stats.outliers_influence import variance_inflation_factor
-        import statsmodels.api as sm
         
-        X = self.data.drop(['POWER', 'WS10', 'U10'], axis=1)
+        X = self.data.drop(['POWER'], axis=1)
         y = self.data['POWER']
         
         """
@@ -144,6 +141,8 @@ class CompareModels:
         vif['VIF Factor'] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
         vif['features'] = X.columns
         print(vif.round())
+        
+        X = self.data.drop(['POWER', 'WS10', 'U10'], axis=1)
         
         if pair_plot:
             sb.pairplot(self.data, x_vars=['WS100', 'U100'], y_vars=['POWER'], plot_kws={"s": 3})
@@ -165,86 +164,146 @@ class CompareModels:
         No P>|t| greater than significance level 0.05. Keep features
         Can now create our model:
         """
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-        print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
         
-        #Train model
-        linear_reg = LinearRegression()
-        linear_reg.fit(X_train, y_train)
+        best_acc = 0
         
-        #Predict
-        y_pred = linear_reg.predict(X_test)
-        
-        sb.distplot(y_test, color='r', label='Actual Values', hist=False)
-        sb.distplot(y_pred, color='g', label='Predicted Values', hist=False)
+        """Looping to find the best fit linear model"""
+        if model:
+            for _ in range(runs):
+            
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+                
+                linear = LinearRegression()
+                linear.fit(X_train, y_train)
+                
+                y_pred = linear.predict(X_test)
+                acc = r2_score(y_test, y_pred)
+                rmse = sqrt(mean_squared_error(y_test, y_pred))
+                nrmse = rmse / y.mean()
+                
+                if acc > best_acc:
+                    print('Model Accuracy: {} %'.format(round(acc*100,3)))
+                    best_acc = acc
+                    
+                    """Save our model with the best accuracy"""
+                    with open('multipleregmodel.pkl', 'wb') as handle:
+                        pickle.dump(linear, handle)
+                        
+            print('----------Model saved----------')       
+            print('R-squared: {}'.format(best_acc))   # Accuracy for what the Power will be given
+            print('RMSE: {}'.format(rmse))            # Root Mean Square Error (RMSE)
+            print('NRMSE: {}'.format(nrmse))          # Normalized Root Mean Square Error (NRMSE)
+            print('Coeff: ', linear.coef_)            # Coefficients for attributes (a)
+            print('Intercept: ', linear.intercept_)   # Intercept of y (b)
+            
+        else:
+            try:
+                """Read in our pickle file"""
+                pickle_in = open('multipleregmodel.pkl', 'rb')
+                linear = pickle.load(pickle_in)
+                print('Multiple regression model imported')
+            except:
+                raise ValueError('run_model set to False, missing file "linregmodel.pkl". Set run_model True to run and save model.')
+
+
+        """Plot distribution actual- vs. predicted power"""        
+        sb.distplot(y_test, color='#0080FF', label='Actual Values',
+                    hist=True, bins = 25,
+                    norm_hist=True).set_title('Actual- vs. Predicted Power Output, Acc = {} %'.format(round(best_acc*100, 3)))
+        sb.distplot(y_pred, color='#FB6805', label='Predicted Values',
+                    hist=True, norm_hist=True, bins=25)
+        plt.xlabel('Power (W)', fontsize=13)
+        plt.ylabel('Probability Density', fontsize=13)
+        plt.legend()
         plt.show()
         
         
-    def PolynomialRegression(self, run_model=True, runs=1):
+    def PolynomialRegression(self, model=True, runs=1000, plot=True):
         """Perform a polynomial regression"""
-        
-        from sklearn.preprocessing import PolynomialFeatures 
         
         target = 'POWER'    # Target variable
         feature = 'WS100'   # Feature variable
         
-        X = self.data[predictor].values.reshape(-1,1)
-        y = self.data[feature].values
+        self.data = self.data.sort_values(by=[feature])
+        
+        X = self.data[feature].values.reshape(-1,1)
+        y = self.data[target].values
         
         best_acc = 0 # Store best accuracy
         
         """Looping to find the best fit polynomial regression model"""
-        if run_model:
+        if model:
             for _ in range(runs):
                 
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
                 
-                poly_reg = PolynomialFeatures(degree = 6)
-                X_poly = poly_reg.fit_transform(X) 
-                poly_reg.fit(X_poly, y)
-                reg = LinearRegression()
-                reg.fit(X_poly, y)
+                """
+                y = b0*1 + b1*X + b2*X^2 + ... + bd*X^d
+                where d = polynomial degree
+                """
+                poly = PolynomialFeatures(degree = 6)
+                X_poly = poly.fit_transform(X) # Expands the equation according to poly degree
                 
-                acc = round(reg.score(X_poly, y),4)
+                poly.fit(X_poly, y) # Fitting model
+                linear = LinearRegression()
+                linear.fit(X_poly, y)
+                
+                y_poly_pred = linear.predict(X_poly)
+                
+                """Compare actual- to predicted values"""
+                # tmp = pd.DataFrame({'Actual': y, 'Predicted': y_poly_pred})
+                # print(tmp.head())
+                
+                acc = r2_score(y, y_poly_pred)
+                rmse = sqrt(mean_squared_error(y, y_poly_pred))
+                nrmse = rmse / y.mean()
                 
                 if acc > best_acc:
                     print(acc)
                     best_acc = acc
                     
-                    """Save our model with pickle. Saved with best result: 70.69 %"""
-                    with open('linregmodel.pkl', 'wb') as handle:
-                        pickle.dump(poly_reg, handle)
+                    """Save our model with pickle"""
+                    with open('polyregmodel.pkl', 'wb') as handle:
+                        pickle.dump(poly, handle)
                 
-            print('Model saved')      
-            print('Accuracy: {}'.format(acc))      # Accuracy for what the Power will be given 
-            print('co: ', reg.coef_)               # Coefficients for attributes
-            print('Intercept: ', reg.intercept_)   # Intercept of y
+            print('----------Model saved----------')      
+            print('R-squared: {}'.format(best_acc))   # Accuracy for what the Power will be given
+            print('RMSE: {}'.format(rmse))            # Root Mean Square Error (RMSE)
+            print('NRMSE: {}'.format(nrmse))          # Normalized Root Mean Square Error (NRMSE)
+            print('co: ', linear.coef_)               # Coefficients for attributes
+            print('Intercept: ', linear.intercept_)   # Intercept of y
         
         else:
             try:
                 """Read in our pickle file"""
                 pickle_in = open('polyregmodel.pkl', 'rb')
-                poly_reg = pickle.load(pickle_in)
+                poly = pickle.load(pickle_in)
                 print('Polynomial regression model imported')
             except:
                 raise ValueError('run_model set to False, missing file "polyregmodel.pkl". Set run_model True to run and save model')
         
-        """Hexplot since big dataset"""
-        plt.hexbin(X, y, gridsize=20, cmap='Blues')
-        plt.axis([X.min(), X.max(), y.min(), y.max()])
-        cb = plt.colorbar()
-        cb.set_label('Scatter density')
-        plt.plot(X, reg.predict(poly_reg.fit_transform(X)), color='#417ed6', alpha=0.7, lw=0.7)
-        plt.xlabel(feature)
-        plt.ylabel(target)
-        plt.tight_layout()
-        plt.show()
+        if plot:
+            """Plot """
+            f = plt.figure(figsize=(8, 6), dpi=100)
+            ax = f.add_subplot(111)
+            
+            ax.hexbin(X[:,0], y, gridsize=28, cmap='Blues', norm=mlt.colors.LogNorm()) # Plotting data distribution
+            ax.axis([X.min(), X.max(), y.min(), y.max()])
+            pcm = ax.get_children()[0]
+            cb = plt.colorbar(pcm, ax=ax,)
+            cb.set_label('Data point density', fontsize=13)
+            
+            ax.plot(X, y_poly_pred, color='k', alpha=0.4, lw=3) # Linear Regression line
+            plt.xlabel(feature, fontsize=13)
+            plt.ylabel(target, fontsize=13)
+            plt.title('Polynomial Regression Fit, Acc = {} %'.format(round(best_acc*100, 3)), fontsize=15)
+            plt.tight_layout()
+            plt.show()  
         
         
-    def PolynomialRegressionNumpy(self, degree=6, plot=True):
+    def PolynomialRegressionNumpy(self, degree=6, plot=True, model=True):
         """Polynomial regression"""
         
-        import matplotlib
         
         predict = 'POWER'
         predictor = 'WS100'
@@ -278,14 +337,14 @@ class CompareModels:
             f = plt.figure(figsize=(8, 6), dpi=100)
             ax = f.add_subplot(111)
             
-            ax.hexbin(X, y, gridsize=28, cmap='PuBu', norm=matplotlib.colors.LogNorm())
+            ax.hexbin(X, y, gridsize=28, cmap='PuBu', norm=mlt.colors.LogNorm())
             ax.axis([X.min(), X.max(), y.min(), y.max()])
             pcm = ax.get_children()[0]
             cb = plt.colorbar(pcm, ax=ax)
             cb.set_label('Data point density')
             ax.plot(x_model, y_model, color='k', alpha=0.4, lw=4)
-            plt.xlabel(predictor)
-            plt.ylabel(predict)
+            plt.xlabel=predictor
+            plt.ylabel=predict
             plt.title('Polynomial Regression, Polynomial order {}'.format(degree))
             plt.tight_layout()
             plt.show() 
@@ -487,11 +546,12 @@ class CompareModels:
 
 if __name__ == '__main__':
     c = CompareModels()
-    #c.kNNeighborsRegression()
-    c.LinearRegression()
-    #c.MultipleRegression()
+    
+    #c.LinearRegression()
+    c.MultipleRegression()
     #c.PolynomialRegression()
     #c.PolynomialRegressionNumpy(degree=6)
+    #c.kNNeighborsRegression()
     #c.SupportVectorRegression()
     #c.scatterplot_winds()
     #c.LinearRegression(run_model=True)

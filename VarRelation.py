@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
+import scipy as sp
 
 class VarRelation:
     """Study the relationship between variables in dataset"""
@@ -228,12 +229,31 @@ class VarRelation:
         print('Optimal daytime difference: ' + str(t) + '-' + str(12+t) + '/' + str(12+t) + '-' + str((24+t) % 24) +
               '\nMoving average: ' + str(mov_av) + ' days')
         
+    def plot_power_autocorr(self):
+        data = self.data.filter(['POWER', 'WS100', 'WS10'])
+        power = data['POWER']
+        ws100 = data['WS100']
+        power = (power - power.mean()) / power.std()
+        ws100 = (ws100 - ws100.mean()) / power.std()
+        shift = 1
+        y0 = ws100[0:-1-shift]
+        y1 = power[shift:-1]
+        acorr = np.correlate(
+            y0,
+            y1,
+            mode='full',
+            )
+        acorr = acorr[int(len(acorr) / 2):] / len(acorr)
+        print(max(acorr))
+        plt.plot(acorr, '.')
+        
 if __name__ == '__main__':
     c = VarRelation()
     # c.plot_moving_average(cols=['WS10', 'WS100', 'POWER'], hours=24*30)
     # c.group_by_time()
     # c.plot_correlation_matrix()
-    # c.plot_numeric_correlation()
+    c.plot_numeric_correlation()
     # c.plot_numeric_covariance()
     # c.plot_monthly_power_speed_relation()
-    c.plot_daytime_comparison(data_type='WS100', mov_av=40)
+    # c.plot_daytime_comparison(data_type='WS100', mov_av=40)
+    c.plot_power_autocorr()

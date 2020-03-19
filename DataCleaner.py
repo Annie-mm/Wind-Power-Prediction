@@ -45,11 +45,11 @@ class DataCleaner:
         
         if _all:
             for column in self.columns:
-                plt.figure(figsize=(15,8))
+                plt.figure(figsize=(15, 8))
                 sns.distplot(self.data[column], bins=30)
         else:
             try:
-                plt.figure(figsize=(15,8))
+                plt.figure(figsize=(15, 8))
                 sns.distplot(self.data[column_name], bins=30)
             except: 
                 print('No valid column name given', self.columns)

@@ -12,25 +12,28 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, plot_confusion_matrix
+import matplotlib as mp
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 class LogReg:
-    def __init__(self, x_val=['WS100', 'V100']):
+    def __init__(self, x_val=['WS100', 'V100'], test_size=.25):
         try:
             self.data = pd.read_pickle('data_by_mean.pkl')
         except:
             raise ImportError("Missing file: 'data_by_mean.pkl")
-            
+        
+        self.test_size
         self.data = self.data#[['POWER', 'WS10', 'WS100']]
         self.columns = self.data.columns
         self.data['POWER'] = pd.cut(self.data['POWER']*100, bins=[0, 70, 100], labels=[0, 1], include_lowest=True)
-        self.reg, self.train, self.test = self._preprocessing(x_val)
+        self.reg, self.train, self.test = self._preprocessing(x_val, test_size)
     
-    def _preprocessing(self, x_val, test_size=.25, ):
+    def _preprocessing(self, x_val, test_size):
         """Create LogisticReg Model
         
         Be aware of assumptions: https://www.statisticssolutions.com/assumptions-of-logistic-regression/
+        Especially: only non-correlating variables as input
         
         Parameters
         ----------
@@ -48,8 +51,6 @@ class LogReg:
         # Train/Test Selection
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=test_size, random_state = 0)
-        # print('Train: ' + str(X_train.mean(axis=0))+ ' / ' + str(X_train.std(axis=0)))
-        # print('Test: ' + str(X_test.mean(axis=0))+ ' / ' + str(X_test.std(axis=0)))
         # Feature Scaling
         sc = StandardScaler()
         train = {
@@ -104,17 +105,17 @@ class LogReg:
         
     def compute_confusion_matrix(self):
         fig = plt.figure(figsize=(18, 6))
-        ax1 = fig.add_subplot(1, 2, 1)
+        ax1 = fig.add_subplot(1, 2, 1)        
         ax2 = fig.add_subplot(1, 2, 2)
         # Confusion Matrix
         cm_train_disp = plot_confusion_matrix(
             self.reg, self.train['X'], self.train['y'], cmap="RdYlGn", values_format='g', 
-            ax=ax2, display_labels=['Not High Power', 'High Power'],
+            ax=ax2, #display_labels=['Not High Power', 'High Power'],
             )
         # cm_train_disp.im_.colorbar.remove()
         cm_test_disp = plot_confusion_matrix(
             self.reg, self.test['X'], self.test['y'], cmap="RdYlGn", values_format='g', 
-            ax=ax1, display_labels=['Not High Power', 'High Power'],
+            ax=ax1, #display_labels=['Not High Power', 'High Power'],
             )
         # cm_test_disp.im_.colorbar.remove()
         ax1.xaxis.set_label_position('top')
@@ -124,7 +125,13 @@ class LogReg:
         cm_train = self._confusion_analaysis(cm_train_disp.confusion_matrix)
         cm_test = self._confusion_analaysis(cm_test_disp.confusion_matrix)
         print('Train:\n  Accuracy: ' + str(cm_train['accuracy']) +
-              '\nTest:\n  Accuracy: ' + str(cm_test['accuracy']))
+              '\n  Sensitivity: ' + str(cm_train['sensitivity']) +
+              '\n  Specifity: ' + str(cm_train['specificity']) +
+              '\nTest:\n  Accuracy: ' + str(cm_test['accuracy']) + 
+              '\n  Sensitivity: ' + str(cm_test['sensitivity']) +
+              '\n  Specificity: ' + str(cm_test['specificity'])
+              )
+        return fig, cm_train, cm_test
         
     def _confusion_analaysis(self, cm):
         true_neg = cm[0, 0]     # has 'Not High Power'
@@ -135,13 +142,61 @@ class LogReg:
         result = {
             'cm': cm,
             'accuracy': (true_neg + true_pos) / n,          # overall accuracy 
-            'sensivity': true_pos / (true_pos + false_neg), # accuracy of 'High Power' detection
-            'specifity': true_neg / (true_neg + false_pos), # accuracy of 'Not High Power' detection
+            'sensitivity': true_pos / (true_pos + false_neg), # accuracy of 'High Power' detection
+            'specificity': true_neg / (true_neg + false_pos), # accuracy of 'Not High Power' detection
             }
         return result
     
+    def prep_for_report(self):
+        loc = '../windforcasting_report/'
+        size = 15
+        pgf_with_latex = {                      # setup matplotlib to use latex for output
+            "pgf.texsystem": "pdflatex",        # change this if using xetex or lautex
+            "text.usetex": True,                # use LaTeX to write all text
+            "font.family": 'serif',
+            "font.serif": [],                   # blank entries should cause plots 
+            "font.sans-serif": [],              # to inherit fonts from the document
+            "font.monospace": [],
+            "axes.labelsize": size,               # LaTeX default is 10pt font.
+            "font.size": size,
+            "legend.fontsize": size,               # Make the legend/label fonts 
+            "xtick.labelsize": size,               # a little smaller
+            "ytick.labelsize": size,
+            # "figure.figsize": (12, 8),     # default fig size of 0.9 textwidth
+            "pgf.preamble": [
+                r"\usepackage[utf8x]{inputenc}",    # use utf8 fonts 
+                r"\usepackage[T1]{fontenc}",        # plots will be generated
+                r"\usepackage[detect-all,locale=DE]{siunitx}",
+                ]                                   # using this preamble
+            }
+        # }}}
+        mp.rcParams.update(pgf_with_latex)
+        fig, cm_train, cm_test = self.compute_confusion_matrix()
+        fig.axes[0].text(-.7, -0.6, 'a) Training', fontweight='bold')
+        fig.axes[1].text(-.7, -0.6, 'b) Testing', fontweight='bold')
+        # saving confusion matrix
+        fig.savefig(loc + 'figures/logistic_regression/cm.pgf')
+        # saving trian and test performance evaluation values
+        train = [round(cm_train['accuracy'] * 100, 3),
+                 round(cm_train['sensitivity'] * 100, 3),
+                 round(cm_train['specificity'] * 100, 3),]
+        test = [round(cm_test['accuracy'] * 100, 3),
+                 round(cm_test['sensitivity'] * 100, 3),
+                 round(cm_test['specificity'] * 100, 3),]        
+        print(
+            ' & '.join(['\SI{' + str(val) + '}{\percent}' for val in train]), 
+            file=open(loc + 'values/' + str(int(self.test_size*100)) + 'logreg_eval_train' + '.tex', 'w'),
+        )
+        print(
+            ' & '.join(['\SI{' + str(val) + '}{\percent}' for val in test]),
+            file=open(loc + 'values/' + str(int(self.test_size*100)) + 'logreg_eval_test' + '.tex', 'w'),
+        )
+        
+        plt.rcParams['axes.prop_cycle'] = plt.rcParamsDefault['axes.prop_cycle']
+
+    
 if __name__ == '__main__':
-    obj = LogReg()
-    # print(obj.data['POWER'])
-    obj.compute_confusion_matrix()
+    obj = LogReg()#test_size=.2)
+    # obj.compute_confusion_matrix()
+    obj.prep_for_report()
     

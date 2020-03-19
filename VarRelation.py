@@ -30,11 +30,6 @@ class VarRelation:
         
         self.unique = self.data[col].unique()
         return self.unique
-
-
-    def same_day(self, date_string):
-        """remove year"""
-        return datetime.strptime(date_string, "%Y-%m-%d %h:%m:%s").strftime('%m-%d')
     
         
     def plot_moving_average(self, cols='POWER', hours=400):

@@ -23,7 +23,7 @@ class LogReg:
         except:
             raise ImportError("Missing file: 'data_by_mean.pkl")
         
-        self.test_size
+        self.test_size = test_size
         self.data = self.data#[['POWER', 'WS10', 'WS100']]
         self.columns = self.data.columns
         self.data['POWER'] = pd.cut(self.data['POWER']*100, bins=[0, 70, 100], labels=[0, 1], include_lowest=True)
@@ -197,6 +197,6 @@ class LogReg:
     
 if __name__ == '__main__':
     obj = LogReg()#test_size=.2)
-    # obj.compute_confusion_matrix()
-    obj.prep_for_report()
+    obj.compute_confusion_matrix()
+    # obj.prep_for_report()
     

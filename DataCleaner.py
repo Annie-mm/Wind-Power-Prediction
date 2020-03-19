@@ -40,7 +40,7 @@ class DataCleaner:
         self.data.drop('TIME', axis=1, inplace=True)
         
         
-    def data_distribution(self, column_name=None, _all=False):
+    def data_distribution(self, column_name=True, _all=True):
         """Distribution-plot to get a feeling of possible outliers"""
         
         if _all:
@@ -270,10 +270,11 @@ class DataCleaner:
                 
 if __name__ == "__main__":
     c = DataCleaner()
+    c.data_distribution()
     # c.identify_missing_values()
     # c.handle_missing_values()
     # c.identify_missing_values()
-    c.save_cleaned_data(by='mean')
+    #c.save_cleaned_data(by='mean')
     
     
     

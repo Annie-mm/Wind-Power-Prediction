@@ -6,9 +6,10 @@ Created on Mon Mar  9 00:32:35 2020
 @author: alfredo
 """
 
+import numpy as np
 import pandas as pd
 import sklearn
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score, cross_validate
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, plot_confusion_matrix
@@ -68,42 +69,41 @@ class LogReg:
         # print(reg.coef_)
         # print(reg.score(test['X'], test['y']))
         return reg, train, test
-        
-        # # Predict y test results
-        # y_pred = classifier.predict(X_test)
-        
-        # fig = plt.figure(figsize=(18, 6))
-        # ax1 = fig.add_subplot(1, 2, 1)
-        # ax2 = fig.add_subplot(1, 2, 2)
-        # # Confusion Matrix
-        # cm_test = confusion_matrix(y_test, y_pred)
-        # cm_train = confusion_matrix(y_train, classifier.predict(X_train))
-        # sns.heatmap(cm_test, cmap="RdYlGn", fmt='g',
-        #             ax=ax1, annot=True, square=True)
-        # sns.heatmap(cm_test, cmap="RdYlGn", fmt='g',
-        #             ax=ax1, annot=True, square=True)
-        # cm_test = plot_confusion_matrix(
-        #     classifier, X_test, y_test, cmap="RdYlGn", values_format='g', 
-        #     ax=ax1, display_labels=['Not High Power', 'High Power'],
-        #     )
-        # cm_test.im_.colorbar.remove()
-        # cm_test = cm_test.confusion_matrix
-        # cm_train = plot_confusion_matrix(
-        #     classifier, X_train, y_train, cmap="RdYlGn", values_format='g', 
-        #     ax=ax2, display_labels=['Not High Power', 'High Power'],
-        #     )
-        # cm_train.im_.colorbar.remove()
-        # cm_train = cm_train.confusion_matrix
-        # ax1.xaxis.set_label_position('top')
-        # ax1.xaxis.tick_top()
-        # ax2.xaxis.set_label_position('top')
-        # ax2.xaxis.tick_top()
-        # sns.heatmap(cm_test, cmap="RdYlGn",
-        #             ax=ax2, annot=True, square=True)
-        # plt.scatter(X_train[:, 0], y_train, color='r')
-        # plt.scatter(X_test[:, 0], y_test, color='k')
+    
+    def compare_test_size(self):
+        """Compare algrithm based on different test sizes"""
+        sizes = [.1, .15, .2, .25, .3, .35, .4, .45, .5, .55, .6, .65]
+        train = []
+        test = []
+        for val in sizes:
+            reg, dtrain, dtest = self._preprocessing(['WS100', 'V100'], val)
+            train.append(reg.score(dtrain['X'], dtrain['y']))
+            test.append(reg.score(dtest['X'], dtest['y']))
+        tmp = np.subtract(train, test)
+        best_sample_size = sizes[np.argmin(abs(tmp))]
+        print('Optimal Sample Size: ' + str(best_sample_size))
+        # print(min(abs(tmp)))
+    
+    def visualise_2d_data(self, X_set, y_set):
+        """"Display Logistic Regression in cartheisic axis"""
+        from matplotlib.colors import ListedColormap
+        fig = plt.figure(figsize=(18, 12))
+        ax = fig.gca()
+        X1, X2 = np.meshgrid(np.arange(start = X_set[:, 0].min() - 1, stop = X_set[:, 0].max() + 1, step = 0.01),
+                             np.arange(start = X_set[:, 1].min() - 1, stop = X_set[:, 1].max() + 1, step = 0.01))
+        ax.contourf(X1, X2, self.reg.predict(np.array([X1.ravel(), X2.ravel()]).T).reshape(X1.shape),
+                     alpha = 0.75, cmap = ListedColormap(('red', 'green')))
+        ax.set_xlim(X1.min(), X1.max())
+        ax.set_ylim(X2.min(), X2.max())
+        for i, j in enumerate(np.unique(y_set)):
+            plt.scatter(X_set[y_set == j, 0], X_set[y_set == j, 1],
+                        c = ListedColormap(('black', 'blue'))(i), label = j)
+        ax.set_xlabel('Age')
+        ax.set_ylabel('Estimated Salary')
+        plt.legend()
         
     def compute_confusion_matrix(self):
+        """Confusion Matrix visualisation"""
         fig = plt.figure(figsize=(18, 6))
         ax1 = fig.add_subplot(1, 2, 1)        
         ax2 = fig.add_subplot(1, 2, 2)
@@ -134,6 +134,7 @@ class LogReg:
         return fig, cm_train, cm_test
         
     def _confusion_analaysis(self, cm):
+        """"Prepare Confusion Matrix and compute performance"""
         true_neg = cm[0, 0]     # has 'Not High Power'
         false_pos = cm[0, 1]    # has not 'High Power'
         false_neg = cm[1, 0]    # has not 'Not High Power'
@@ -148,6 +149,7 @@ class LogReg:
         return result
     
     def prep_for_report(self):
+        """Prepare and print figures and values for export to latex."""
         loc = '../windforcasting_report/'
         size = 15
         pgf_with_latex = {                      # setup matplotlib to use latex for output
@@ -169,7 +171,6 @@ class LogReg:
                 r"\usepackage[detect-all,locale=DE]{siunitx}",
                 ]                                   # using this preamble
             }
-        # }}}
         mp.rcParams.update(pgf_with_latex)
         fig, cm_train, cm_test = self.compute_confusion_matrix()
         fig.axes[0].text(-.7, -0.6, 'a) Training', fontweight='bold')
@@ -191,12 +192,18 @@ class LogReg:
             ' & '.join(['\SI{' + str(val) + '}{\percent}' for val in test]),
             file=open(loc + 'values/' + str(int(self.test_size*100)) + 'logreg_eval_test' + '.tex', 'w'),
         )
-        
+        # saving test_size value
+        print('\SI{' + str(int(self.test_size*100)) + '}{\percent}',
+            file=open(loc + 'values/' + 'test_size.tex', 'w'),
+        )
         plt.rcParams['axes.prop_cycle'] = plt.rcParamsDefault['axes.prop_cycle']
 
     
 if __name__ == '__main__':
-    obj = LogReg()#test_size=.2)
+    obj = LogReg(test_size=.30)
     obj.compute_confusion_matrix()
+    # obj.visualise_2d_data(obj.train['X'], obj.train['y'])
+    # obj.visualise_2d_data(obj.test['X'], obj.test['y'])
+    # obj.compare_test_size()
     # obj.prep_for_report()
     

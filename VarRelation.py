@@ -224,31 +224,56 @@ class VarRelation:
         print('Optimal daytime difference: ' + str(t) + '-' + str(12+t) + '/' + str(12+t) + '-' + str((24+t) % 24) +
               '\nMoving average: ' + str(mov_av) + ' days')
         
-    def plot_power_autocorr(self):
-        data = self.data.filter(['POWER', 'WS100', 'WS10'])
-        power = data['POWER']
-        ws100 = data['WS100']
-        power = (power - power.mean()) / power.std()
-        ws100 = (ws100 - ws100.mean()) / power.std()
-        shift = 1
-        y0 = ws100[0:-1-shift]
-        y1 = power[shift:-1]
-        acorr = np.correlate(
-            y0,
-            y1,
-            mode='full',
-            )
-        acorr = acorr[int(len(acorr) / 2):] / len(acorr)
-        print(max(acorr))
-        plt.plot(acorr, '.')
+    # def plot_power_autocorr(self):
+    #     data = self.data.filter(['POWER', 'WS100', 'WS10'])
+    #     power = data['POWER']
+    #     ws100 = data['WS100']
+    #     power = (power - power.mean()) / power.std()
+    #     ws100 = (ws100 - ws100.mean()) / power.std()
+    #     shift = 1
+    #     y0 = ws100[0:-1-shift]
+    #     y1 = power[shift:-1]
+    #     acorr = np.correlate(
+    #         y0,
+    #         y1,
+    #         mode='full',
+    #         )
+    #     acorr = acorr[int(len(acorr) / 2):] / len(acorr)
+    #     print(max(acorr))
+    #     plt.plot(acorr, '.')
+        
+    def power_time_lag(self, time_lag=6, data_names=('POWER', 'WS100', 'U100')):
+        """Correlate time lagged data with itself
+        
+        Parameters
+        ----------
+        time_lag:   int
+            number of index shifts
+        data_names: tupel of string
+            name of the strings of the original data
+        """
+        data = self.data.iloc[time_lag:].filter(data_names)
+        for idx in range(1, time_lag+1):
+            for item in data_names:
+                data[item + '+' + str(idx)] = self.data[item].shift(idx)
+        corr = data.corr().copy()
+        fig = plt.figure(figsize=(10,8))
+        ax = fig.gca()
+        sns.heatmap(corr, cmap="RdYlGn", ax=ax,
+                    xticklabels=corr.columns.values,
+                    yticklabels=corr.columns.values,
+                    annot=True, square=True)
+        plt.xticks(rotation=45)
+        plt.yticks(rotation=45)
+
         
 if __name__ == '__main__':
     c = VarRelation()
     # c.plot_moving_average(cols=['WS10', 'WS100', 'POWER'], hours=24*30)
     # c.group_by_time()
     # c.plot_correlation_matrix()
-    c.plot_numeric_correlation()
+    # c.plot_numeric_correlation()
     # c.plot_numeric_covariance()
     # c.plot_monthly_power_speed_relation()
     # c.plot_daytime_comparison(data_type='WS100', mov_av=40)
-    c.plot_power_autocorr()
+    c.power_time_lag(time_lag=6, data_names=('POWER', 'WS100'))

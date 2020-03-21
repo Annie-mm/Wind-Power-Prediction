@@ -549,9 +549,9 @@ if __name__ == '__main__':
     
     #c.LinearRegression()
     c.MultipleRegression()
-    #c.PolynomialRegression()
-    #c.PolynomialRegressionNumpy(degree=6)
-    #c.kNNeighborsRegression()
-    #c.SupportVectorRegression()
+    c.PolynomialRegression()
+    # c.PolynomialRegressionNumpy(degree=6)
+    c.kNNeighborsRegression()
+    c.SupportVectorRegression()
     #c.scatterplot_winds()
     #c.LinearRegression(run_model=True)

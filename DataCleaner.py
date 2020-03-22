@@ -25,7 +25,9 @@ class DataCleaner:
                 pickle.dump(tmp_df, handle)
             with open('data_raw.pkl', 'rb') as handle:
                 self.data = pickle.load(handle)
+                
      
+        self.data.set_index('TIMESTAMP', inplace=True)
         self.columns = self.data.columns
         
         """Replace NAN strings with np.nan"""
@@ -75,7 +77,7 @@ class DataCleaner:
             for col in self.columns:
                 mean = self.data[col][self.data[col] != -9999].mean()
                 std = self.data[col][self.data[col] != -9999].std()
-                print(std)
+                #print(std)
                 outlier_count = 0
                 zero_count = 0
                 for val in self.data[col]:
@@ -270,10 +272,10 @@ class DataCleaner:
                 
 if __name__ == "__main__":
     c = DataCleaner()
-    c.data_distribution()
-    # c.identify_missing_values()
-    # c.handle_missing_values()
-    # c.identify_missing_values()
+    #c.data_distribution()
+    c.identify_missing_values()
+    c.handle_missing_values(method='mean')
+    c.identify_missing_values()
     #c.save_cleaned_data(by='mean')
     
     

@@ -201,9 +201,9 @@ class LogReg:
     
 if __name__ == '__main__':
     obj = LogReg(test_size=.30)
-    obj.compute_confusion_matrix()
-    # obj.visualise_2d_data(obj.train['X'], obj.train['y'])
-    # obj.visualise_2d_data(obj.test['X'], obj.test['y'])
-    # obj.compare_test_size()
-    # obj.prep_for_report()
+    #obj.compute_confusion_matrix()
+    #obj.visualise_2d_data(obj.train['X'], obj.train['y'])
+    #obj.visualise_2d_data(obj.test['X'], obj.test['y'])
+    #obj.compare_test_size()
+    #obj.prep_for_report()
     

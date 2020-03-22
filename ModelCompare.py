@@ -16,9 +16,10 @@ import statsmodels.api as sm
 from math import sqrt
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.svm import SVR
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 
@@ -84,7 +85,7 @@ class CompareModels:
                 nrmse = rmse / y.mean()
                 
                 if acc > best_acc:
-                    print('Model Accuracy: {} %'.format(round(acc*100,3)))
+                    print(f'Model Accuracy: {round(acc*100,3)} %')
                     best_acc = acc
                     
                     """Save our model with the best accuracy"""
@@ -111,16 +112,16 @@ class CompareModels:
         f = plt.figure(figsize=(8, 6), dpi=100)
         ax = f.add_subplot(111)
         
-        ax.hexbin(X, y, gridsize=28, cmap='Blues', norm=mlt.colors.LogNorm()) # Plotting data distribution
+        ax.hexbin(X.flatten(), y, gridsize=28, cmap='Blues', norm=mlt.colors.LogNorm()) # Plotting data distribution
         ax.axis([X.min(), X.max(), y.min(), y.max()])
         pcm = ax.get_children()[0]
         cb = plt.colorbar(pcm, ax=ax,)
         cb.set_label('Data point density', fontsize=13)
         
-        ax.plot(X_test, y_pred, color='k', alpha=0.4, lw=3) # Linear Regression line
-        plt.xlabel(feature, fontsize=13)
-        plt.ylabel(target, fontsize=13)
-        plt.title('Linear Regression Fit, Acc = {} %'.format(round(best_acc*100, 3)), fontsize=15)
+        ax.plot(X_test, y_pred, color='k', alpha=0.6, lw=3) # Linear Regression line
+        plt.xlabel('{} (m/s)'.format(feature), fontsize=13)
+        plt.ylabel('{} (W)'.format(target), fontsize=13)
+        plt.title(f'Linear Regression Fit, Acc = {round(best_acc*100, 3)} %', fontsize=15)
         plt.tight_layout()
         plt.show()       
         
@@ -128,20 +129,21 @@ class CompareModels:
     def MultipleRegression(self, pair_plot=False, model=True, runs=1500):
         """Perform a multiple regression"""
         
+        target = 'POWER'
         
-        X = self.data.drop(['POWER'], axis=1)
-        y = self.data['POWER']
+        X = self.data.drop([target], axis=1)
+        y = self.data[target]
         
         """
         Variance inflation factor VIF
         In turn removing any feature with VIF > 30, dropping them above
         Getting rid of multicolinearity, ind. var. that highly relate to each other
         """
+        
         vif = pd.DataFrame()
         vif['VIF Factor'] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
         vif['features'] = X.columns
         print(vif.round())
-        
         X = self.data.drop(['POWER', 'WS10', 'U10'], axis=1)
         
         if pair_plot:
@@ -155,8 +157,8 @@ class CompareModels:
         Need to add one more feature, a constant 1
         """
         
-        X=sm.add_constant(X)
-        #print(X.head())
+        X=sm.add_constant(X) # Adding column of constants
+        print(X.head())
         regressorOLS = sm.OLS(y, X).fit()
         print(regressorOLS.summary())
         
@@ -209,16 +211,66 @@ class CompareModels:
         """Plot distribution actual- vs. predicted power"""        
         sb.distplot(y_test, color='#0080FF', label='Actual Values',
                     hist=True, bins = 25,
-                    norm_hist=True).set_title('Actual- vs. Predicted Power Output, Acc = {} %'.format(round(best_acc*100, 3)))
+                    norm_hist=True).set_title('Actual- vs. Predicted Power Output, Multiple Regression Acc = {} %'.format(round(best_acc*100, 3)))
         sb.distplot(y_pred, color='#FB6805', label='Predicted Values',
                     hist=True, norm_hist=True, bins=25)
-        plt.xlabel('Power (W)', fontsize=13)
+        plt.xlabel('{} (W)'.format(target), fontsize=13)
         plt.ylabel('Probability Density', fontsize=13)
         plt.legend()
         plt.show()
         
+    def PolynomialRegressionOpt(self, n=4):
+        """Perform a polynomial regression"""
         
-    def PolynomialRegression(self, model=True, runs=1000, plot=True):
+        # import tensorflow as tf
+        # from tensorflow import keras
+        # from keras.models import Sequantial
+        # #from tensorflow.keras.models import Sequential
+        # from tensorflow.keras.layers import Dense, Activation, Dropout
+        # from tensorflow.callbacks import EarlyStopping
+        import numpy as np
+        import pandas as pd
+        import matplotlib.pyplot as plt
+        
+
+        
+        target = 'POWER'    # Target variable
+        feature = 'WS100'   # Feature variable
+        
+        self.data = self.data.sort_values(by=[feature])
+        
+        X = self.data[feature].values
+        y = self.data[target].values
+        
+        x_scaled = X/max(X)
+        y_scaled = y
+        
+        poly = PolynomialFeatures(degree=n)
+        x_poly = poly.fit_transform(x_scaled.reshape(-1,1))
+        
+        model = Sequential([Dense(units=1, input_shape=[4])])
+        optimizer = Adam(learning_rate=1e-3)
+        model.compile(optimizer=optimizer, loss='mean_squared_error')
+        history = model.fit(x_poly, y_scaled, epochs=500)
+        
+        mse = history.history['loss'][-1]
+        y_result = model.predict(x_poly)
+        
+        plt.title('Polynomial Regression')
+        plt.scatter(x_poly[:, 1], y_scaled)
+        plt.plot(x_poly[:, 1], y_result, color = 'red')
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.text(0,0.70,'MSE = {:.3f}'.format(mse))
+        plt.show()
+        
+        
+        
+        
+        
+        
+        
+    def PolynomialRegression(self, model=True, runs=1000, plot=True, ndegree=6):
         """Perform a polynomial regression"""
         
         target = 'POWER'    # Target variable
@@ -230,18 +282,23 @@ class CompareModels:
         y = self.data[target].values
         
         best_acc = 0 # Store best accuracy
+        #param_grid = {'degree': list(np.arange(1,10))}
+        
+        
         
         """Looping to find the best fit polynomial regression model"""
         if model:
             for _ in range(runs):
                 
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+                poly = PolynomialFeatures(degree = ndegree)
+                
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
                 
                 """
                 y = b0*1 + b1*X + b2*X^2 + ... + bd*X^d
                 where d = polynomial degree
                 """
-                poly = PolynomialFeatures(degree = 6)
+                #poly = GridSearchCV(PolynomialFeatures(degree = 6), param_grid)
                 X_poly = poly.fit_transform(X) # Expands the equation according to poly degree
                 
                 poly.fit(X_poly, y) # Fitting model
@@ -259,7 +316,7 @@ class CompareModels:
                 nrmse = rmse / y.mean()
                 
                 if acc > best_acc:
-                    print(acc)
+                    print('Model Accuracy: {} %'.format(round(acc*100,3)))
                     best_acc = acc
                     
                     """Save our model with pickle"""
@@ -283,7 +340,7 @@ class CompareModels:
                 raise ValueError('run_model set to False, missing file "polyregmodel.pkl". Set run_model True to run and save model')
         
         if plot:
-            """Plot """
+            """Display Polynomial Regression"""
             f = plt.figure(figsize=(8, 6), dpi=100)
             ax = f.add_subplot(111)
             
@@ -293,9 +350,9 @@ class CompareModels:
             cb = plt.colorbar(pcm, ax=ax,)
             cb.set_label('Data point density', fontsize=13)
             
-            ax.plot(X, y_poly_pred, color='k', alpha=0.4, lw=3) # Linear Regression line
-            plt.xlabel(feature, fontsize=13)
-            plt.ylabel(target, fontsize=13)
+            ax.plot(X, y_poly_pred, color='k', alpha=0.6, lw=4) # Linear Regression line
+            plt.xlabel('{} (m/s)'.format(feature), fontsize=13)
+            plt.ylabel('{} (W)'.format(target), fontsize=13)
             plt.title('Polynomial Regression Fit, Acc = {} %'.format(round(best_acc*100, 3)), fontsize=15)
             plt.tight_layout()
             plt.show()  
@@ -351,18 +408,16 @@ class CompareModels:
             
             
     
-    def kNNeighborsRegression(self, plot=True, fit_model=True, det_k=True, plot_k=True):
+    def kNNeighborsRegression(self, model=True, det_k=True, plot_k=True, plot=True):
         """kNN Regression"""
         
-        
-        if fit_model: 
+        if model: 
             
-            predict = "POWER"
-            predictor = "WS100"
+            target = "POWER"
+            feature = "WS100"
             
-            X = self.data[predictor].values.reshape(-1,1)
-            #y = self.data.drop([predict], 1).values
-            y = self.data[predict].values
+            X = self.data[feature].values.reshape(-1,1)
+            y = self.data[target].values
             
             best_acc = 0    # Store best accuracy
             runs = 100      # Number of loops to find best fit
@@ -370,9 +425,10 @@ class CompareModels:
             
             if det_k:
                 """Determine the optimal number of neighbors"""
+                print('Determining optimal k neighbors...')
                 lowest_rmse = 1
                 store_rmse = []
-                for k in range(100):
+                for k in range(1000):
                     k = k + 1
                     knn = KNeighborsRegressor(k)
                     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
@@ -389,13 +445,15 @@ class CompareModels:
                     """Display the RMSE as a function of k"""
                     plt.figure(figsize=(10,8))
                     k_plot = pd.DataFrame(store_rmse)
-                    k_plot.plot()
-                    plt.xlabel("k neighbors")
-                    plt.ylabel("RMSE")
+                    ax = k_plot.plot(label='RMSE', color='teal', legend=False,
+                                     title='RMSE as function of k neighbors, opt. k = {}'.format(n_neigh))
+                    plt.axvline(n_neigh - 1, 0, 1, alpha=0.3, color='k')
+                    plt.axhline(lowest_rmse, 0, 1, alpha=0.3, color='k')
+                    ax.set_xlabel('k neighbors')
+                    ax.set_ylabel('RMSE')
                     plt.show()
                     
-            
-            knn = KNeighborsRegressor(n_neighbors=n_neigh) # Model
+            knn = KNeighborsRegressor(n_neighbors=n_neigh)
             
             """Run the kNN fitting n times (runs) to find the best fit and save model"""
             for _ in range(runs):
@@ -409,19 +467,22 @@ class CompareModels:
                 
                 acc = r2_score(y_test, knn.predict(X_test))
                 rmse = sqrt(mean_squared_error(y_test, knn.predict(X_test)))
+                nrmse = rmse / y.mean()
                 
                 if acc > best_acc:
+                    print('Model Accuracy: {} %'.format(round(acc*100,3)))
                     best_acc = acc
                     
                     """Save our model with the best accuracy"""
                     with open('knnmodel.pkl', 'wb') as handle:
                         pickle.dump(knn, handle)
                         
-                        
-            print('Model saved')       
-            print('Accuracy: {}'.format(best_acc))  
-            print('k: {}'.format(n_neigh))        
-            print('Root Mean Squared Error: {}'.format(rmse))
+            print('----------Model saved----------')      
+            print('R-squared: {}'.format(best_acc))   # Accuracy for what the Power will be given
+            print('RMSE: {}'.format(rmse))            # Root Mean Square Error (RMSE)
+            print('NRMSE: {}'.format(nrmse))          # Normalized Root Mean Square Error (NRMSE)
+            print('k: {}'.format(n_neigh))              # Coefficients for attributes
+            
         else:
             try:
                 """Read in our pickled model"""
@@ -439,119 +500,102 @@ class CompareModels:
             ax = f.add_subplot(111)
             ax.hexbin(X_test[:,0], y_pred_knn, gridsize=28, cmap='PuBu', norm=mlt.colors.LogNorm())
             ax.axis([X.min(), X.max(), y.min(), y.max()])
+            
             pcm = ax.get_children()[0]
             cb = plt.colorbar(pcm, ax=ax)
             cb.set_label('Data point density')
-            plt.xlabel(predictor)
-            #plt.xlabel(str(self.data.columns.drop([predict]).values))
-            plt.ylabel(predict)
-            plt.title('kNN Regression, k = {}'.format(n_neigh))
+            
+            plt.xlabel('{} (m/s)'.format(feature), fontsize=13)
+            plt.ylabel('{} (W)'.format(target), fontsize=13)
+            plt.title('kNN Regression, k = {}, acc = {} %'.format(n_neigh, round(best_acc*100, 3)),
+                      fontsize=15)
             plt.tight_layout()
             plt.show() 
        
         
         
     def SupportVectorRegression(self, plot=True, model=True):
+        """Perform a Support Vector Regression"""
         
-        from sklearn.svm import SVR
-        import matplotlib
-        
-        predict = 'POWER'
-        predictor = 'WS100'
+        target = 'POWER'
+        feature = 'WS100'
+            
+        X = self.data[feature].values.reshape(-1,1)
+        y = self.data[target].values
+            
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
         
         if model:
+            """
+            Generate SVR model with optimized parameters
+            Radial Basis Function Kernel
+            Long computation (~15min +)
+            """
+            svr_rbf = GridSearchCV(SVR(kernel='rbf', gamma=0.1),
+                      param_grid={"C": [1e0, 1e1, 1e2, 1e3],
+                      "gamma": np.logspace(-2, 2, 5)})
             
-            X = self.data[predictor][:500].values.reshape(-1,1)
-            y = self.data[predict][:500].values
+            y_rbf = svr_rbf.fit(X_train, y_train)
+            y_pred = y_rbf.predict(X_test)
             
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)   
+            acc = r2_score(y_test, y_pred)
+            rmse = sqrt(mean_squared_error(y_test, y_pred))
+            nrmse = rmse / y.mean()
             
             
-            svr_rbf = SVR(kernel='rbf', C=1e3, gamma = 0.1)
-            #svr_lin = SVR(kernel='linear', C=1e3)
-            #svr_poly = SVR(kernel='poly', C=1e3, degree=2)
-            y_rbf = svr_rbf.fit(X_train, y_train).predict(X_test)
-            #y_lin = svr_lin.fit(X, y).predict(X)
-            #y_poly = svr_poly.fit(X, y).predict(X)
+            """Save our model with the best accuracy"""
+            with open('svrmodel.pkl', 'wb') as handle:
+                pickle.dump(svr_rbf, handle)
+                
+            print('----------Model saved----------')      
+            print('R-squared: {}'.format(acc))   # Accuracy for what the Power will be given
+            print('RMSE: {}'.format(rmse))            # Root Mean Square Error (RMSE)
+            print('NRMSE: {}'.format(nrmse))          # Normalized Root Mean Square Error (NRMSE)
             
-            # linear = LinearRegression()
-            # acc = linear.score(X, y)
-            # print(acc)
         else:
-            pass
-            
+            try:
+                """Read in our pickled model"""
+                pickle_in = open('svrmodel.pkl', 'rb')
+                svr_rbf = pickle.load(pickle_in)
+                print('SVR model imported')
+            except:
+                raise ValueError('model set to False, missing file "svrmodel.pkl". Set run_model True to fit model')
+        
         if plot:  
-            
-            
+            """Display SVR"""
             f = plt.figure(figsize=(8, 6), dpi=100)
             ax = f.add_subplot(111)
             
-            ax.hexbin(X.flatten(), y, gridsize=28, cmap='Blues', norm=matplotlib.colors.LogNorm())
+            ax.hexbin(X[:,0], y, gridsize=28, cmap='Blues', norm=mlt.colors.LogNorm())
             ax.axis([X.min(), X.max(), y.min(), y.max()])
             pcm = ax.get_children()[0]
             cb = plt.colorbar(pcm, ax=ax)
             cb.set_label('Data point density')
-            ax.plot(X, y_rbf, color='k', alpha=0.4, lw=4)
-            plt.xlabel(predictor)
-            plt.ylabel(predict)
-            plt.title('Support Vector Regression')
+            
+            ax.scatter(X_test, y_pred, color='#2E2E2E', alpha=0.4, lw=4, s=3)
+            plt.xlabel('{} (m/s)'.format(feature), fontsize=13)
+            plt.ylabel('{} (W)'.format(target), fontsize=13)
+            plt.title('Support Vector Regression Fit, Acc = {} %'.format(round(acc*100, 3)), fontsize=15)
             plt.tight_layout()
             plt.show() 
-            
-            
-        #     plt.show()
-        #     plt.scatter(X, y, color='k', label=predictor)
-        #     plt.plot(X, y_rbf, color='r', lw=3, label='RBF Model')
-        #     #plt.plot(X, y_lin, color='c', lw=lw, linestyle='-.', label='Linear Model')
-        #     #plt.plot(X, y_poly, color='navy', lw=lw, linestyle='--', label='Polynomial Model')
-        #     plt.xlabel(predictor)
-        #     plt.ylabel(predict)
-        #     plt.title('Support Vector Regression')
-        #     plt.legend()
-        #     plt.show()
-        # else:
-        #    pass
-            
-            
-            
-        #     for _ in range(1000):
-                
-        #         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
-            
-        #         clf = svm.SVC()
-        #         clf.fit(X_train, y_train)
-                
-        #         best_acc = 0
-                
-        #         acc = clf.score(X_test, y_test)
-                
-        #         if acc > best_acc:
-        #             print(acc)
-        #             best_acc = acc
-                    
-        #             """Save our model with pickle. Saved with best result"""
-        #             with open('svm-model.pkl', 'wb') as f:
-        #                 pickle.dump(clf, f)
-                    
-        # else:
-        #     try:
-        #         """Read pickled SVM model"""
-        #         pickle_in = open('svm-model.pkl', 'rb')
-        #         clf = pickle.load(pickle_in)
-        #         print('Polynomial regression model imported')
-        #     except:
-        #         raise ValueError('run_model set to False, missing file "svm-model.pkl", set run_model True')
-                
-        
+
 
 if __name__ == '__main__':
     c = CompareModels()
-    
     #c.LinearRegression()
+<<<<<<< HEAD
+    #c.MultipleRegression()
+    #c.PolynomialRegression(ndegree=6)
+    #c.PolynomialRegressionOpt(n=6)
+    #c.PolynomialRegressionNumpy(degree=6)
+    c.kNNeighborsRegression()
+    #c.SupportVectorRegression()
+=======
     c.MultipleRegression()
     c.PolynomialRegression()
     # c.PolynomialRegressionNumpy(degree=6)
     c.kNNeighborsRegression()
     c.SupportVectorRegression()
+>>>>>>> e4b04ff059e9a8708cb49f79359cfacc263450fe
     #c.scatterplot_winds()
     #c.LinearRegression(run_model=True)

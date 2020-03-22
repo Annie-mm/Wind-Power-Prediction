@@ -583,19 +583,9 @@ class CompareModels:
 if __name__ == '__main__':
     c = CompareModels()
     #c.LinearRegression()
-<<<<<<< HEAD
     #c.MultipleRegression()
     #c.PolynomialRegression(ndegree=6)
     #c.PolynomialRegressionOpt(n=6)
     #c.PolynomialRegressionNumpy(degree=6)
     c.kNNeighborsRegression()
     #c.SupportVectorRegression()
-=======
-    c.MultipleRegression()
-    c.PolynomialRegression()
-    # c.PolynomialRegressionNumpy(degree=6)
-    c.kNNeighborsRegression()
-    c.SupportVectorRegression()
->>>>>>> e4b04ff059e9a8708cb49f79359cfacc263450fe
-    #c.scatterplot_winds()
-    #c.LinearRegression(run_model=True)

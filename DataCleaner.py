@@ -273,10 +273,10 @@ class DataCleaner:
 if __name__ == "__main__":
     c = DataCleaner()
     #c.data_distribution()
-    c.identify_missing_values()
+    # c.identify_missing_values()
     c.handle_missing_values(method='mean')
-    c.identify_missing_values()
-    #c.save_cleaned_data(by='mean')
+    # c.identify_missing_values()
+    c.save_cleaned_data(by='mean')
     
     
     

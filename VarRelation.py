@@ -7,10 +7,12 @@ Created on Mon Mar 2 13:24:31 2020
 
 import pandas as pd
 import numpy as np
+import matplotlib as mp
 import matplotlib.pyplot as plt
+import pickle
 import seaborn as sns
-from datetime import datetime
-import scipy as sp
+import warnings
+
 
 class VarRelation:
     """Study the relationship between variables in dataset"""
